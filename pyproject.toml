@@ -9,7 +9,7 @@ where = ["src"]
 natcap = ["notebooks/*.ipynb"]
 
 [project]
-name = "schistosomiasis"
+name = "invest-schistosomiasis"
 version = "0.1.0"
 dependencies = [
     "pygeoprocessing",
@@ -28,6 +28,6 @@ dependencies = [
 [tool.natcap.invest]
 api_version = "0.1.0"
 model_title = "Schistosomiasis" # user-facing name
-model_id = "schistosomiasis" # model identifier used internally
-notebook_path = "natcap/notebooks/ipyleaflet.ipynb"
+model_id = "invest-schistosomiasis" # model identifier used internally
+notebook_path = "notebooks/ipyleaflet.ipynb"
 conda_dependencies = ["python<3.13.0", "gdal>=3.9.0", "setuptools<70", "sqlite<3.49.1"]
