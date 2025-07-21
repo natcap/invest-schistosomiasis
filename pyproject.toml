@@ -1,33 +1,33 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=64", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.setuptools.package-data]
 natcap = ["notebooks/*.ipynb"]
 
 [project]
 name = "invest-schistosomiasis"
-version = "0.1.0"
+dynamic = ["version"]
 dependencies = [
-    "pygeoprocessing",
-    "taskgraph",
-    "matplotlib",
-    #"natcap.invest @ git+https://github.com/natcap/invest.git@feature/plugins",
-    "natcap.invest @ git+https://github.com/natcap/schistosomiasis-invest.git@plugin/schisto",
-    "voila",
-    "jupyter",
-    "ipyleaflet",
-    "ipywidgets",
-    "geojson",
-    "gdal-utils"
+  "pygeoprocessing",
+  "taskgraph",
+  "matplotlib",
+  #"natcap.invest>=3.16.1",
+  "natcap.invest @ git+https://github.com/natcap/schistosomiasis-invest.git@plugin/schisto",
+  "voila",
+  "jupyter",
+  "ipyleaflet",
+  "ipywidgets",
+  "geojson",
+  "gdal-utils"
 ]
 
 [tool.natcap.invest]
-api_version = "0.1.0"
-model_title = "Schistosomiasis" # user-facing name
-model_id = "invest-schistosomiasis" # model identifier used internally
+api_version = "v1"
+package_name = "invest_schistosomiasis"
 notebook_path = "notebooks/ipyleaflet.ipynb"
-conda_dependencies = ["python<3.13.0", "gdal>=3.9.0", "setuptools<70", "sqlite<3.49.1"]
+conda_dependencies = [
+	"python<3.13.0",
+	"gdal<3.11",
+	"geotiff>=1.7.3"
+]
