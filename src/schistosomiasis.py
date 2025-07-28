@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import json
 
-from natcap.invest import spec_utils
+from natcap.invest import spec
 from natcap.invest import gettext
 from natcap.invest import utils
 from natcap.invest.spec_utils import u
@@ -69,34 +69,34 @@ PARASITE_OPTIONS = [
         ("sh", "Default: S. haematobium"),
         ("sm", "Defualt: S. mansoni")]
 
-SPEC_FUNC_TYPES = {
-    "type": "option_string",
-    "options": {
-        "default": {"display_name": gettext("Default used in paper.")},
-        "linear": {"display_name": gettext("Linear")},
-        "exponential": {"display_name": gettext("exponential")},
-        "scurve": {"display_name": gettext("scurve")},
-        "trapezoid": {"display_name": gettext("trapezoid")},
-        "gaussian": {"display_name": gettext("gaussian")},
-    },
-    "about": gettext(
-        "The function type to apply to the suitability factor."),
-    "name": gettext("Suitability function type")
-}
+SPEC_FUNC_TYPES = [
+    spec.OptionStringInput(
+        id="production_functions",
+        name="Suitability function type",
+        about="The function type to apply to the suitability factor.",
+        options=[
+            *default_options,
+            spec.Option(key="default", description="Default used in paper."),
+            spec.Option(key="linear", description="Linear"),
+            spec.Option(key="exponential", description="exponential"),
+            spec.Option(key="scurve", description="scurve"),
+            spec.Option(key="trapezoid", description="trapezoid"),
+            spec.Option(key="gaussian", description="gaussian"),
+        ])]
 
-CUSTOM_SPEC_FUNC_TYPES = {
-    "type": "option_string",
-    "options": {
-        "linear": {"display_name": gettext("Linear")},
-        "exponential": {"display_name": gettext("exponential")},
-        "scurve": {"display_name": gettext("scurve")},
-        "trapezoid": {"display_name": gettext("trapezoid")},
-        "gaussian": {"display_name": gettext("gaussian")},
-    },
-    "about": gettext(
-        "The function type to apply to the suitability factor."),
-    "name": gettext("Suitability function type")
-}
+CUSTOM_SPEC_FUNC_TYPES = [
+    spec.OptionStringInput(
+        id="production_functions",
+        name="Suitability function type",
+        about="The function type to apply to the suitability factor.",
+        options=[
+            *default_options,
+            spec.Option(key="linear", description="Linear"),
+            spec.Option(key="exponential", description="exponential"),
+            spec.Option(key="scurve", description="scurve"),
+            spec.Option(key="trapezoid", description="trapezoid"),
+            spec.Option(key="gaussian", description="gaussian"),
+        ])]
 
 SPEC_FUNC_COLS = {
     'linear': {
@@ -162,72 +162,86 @@ SPEC_FUNC_COLS = {
 FUNCS = ['linear', 'trapezoid', 'gaussian', 'scurve', 'exponential']
 
 FUNC_PARAMS = {
-    'population': {
-        f'population_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"population_func_type == '{fn}'",
-            "allowed": f"population_func_type == '{fn}'",
-        }
+    'population': [
+        spec.NumberInput(
+            id=f'population_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"population_func_type == '{fn}'",
+            allowed=f"population_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'water_proximity': [
+        spec.NumberInput(
+            id=f'water_proximity_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_water_proximity and water_proximity_func_type == '{fn}'",
+            allowed=f"calc_water_proximity and water_proximity_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'water_velocity': [
+        spec.NumberInput(
+            id=f'water_velocity_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_water_velocity and water_velocity_func_type == '{fn}'",
+            allowed=f"calc_water_velocity and water_velocity_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'snail_water_temp': [
+        spec.NumberInput(
+            id=f'snail_water_temp_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_temperature and snail_water_temp_func_type == '{fn}'",
+            allowed=f"calc_temperature and snail_water_temp_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'parasite_water_temp': [
+        spec.NumberInput(
+            id=f'parasite_water_temp_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
+            allowed=f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'ndvi': [
+        spec.NumberInput(
+            id=f'ndvi_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_ndvi and ndvi_func_type == '{fn}'",
+            allowed=f"calc_ndvi and ndvi_func_type == '{fn}'",
+            units=None
+        )
         for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'water_proximity': {
-        f'water_proximity_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_water_proximity and water_proximity_func_type == '{fn}'",
-            "allowed": f"calc_water_proximity and water_proximity_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'water_velocity': {
-        f'water_velocity_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_water_velocity and water_velocity_func_type == '{fn}'",
-            "allowed": f"calc_water_velocity and water_velocity_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'snail_water_temp': {
-        f'snail_water_temp_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_temperature and snail_water_temp_func_type == '{fn}'",
-            "allowed": f"calc_temperature and snail_water_temp_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'parasite_water_temp': {
-        f'parasite_water_temp_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
-            "allowed": f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'ndvi': {
-        f'ndvi_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_ndvi and ndvi_func_type == '{fn}'",
-            "allowed": f"calc_ndvi and ndvi_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    }
+    ]
 }
 
 def custom_input_id(input_id):
-    return {
-        f'custom_{input_id}_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
-            "allowed": f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    }
+    return [
+        spec.NumberInput(
+            id=f'custom_{input_id}_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
+            allowed=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ]
 
 FUNC_PARAMS_USER = custom_input_id
 
@@ -240,118 +254,95 @@ def temp_spec_func_types(default_type):
 
     default_param_list = options_dict[default_type]
 
-    default_options = {
-        f"{key}":{"display_name": gettext(f"{name}")} for key, name in default_param_list
-    }
+    default_options = [
+        spec.Option(
+            key=f"{key}",
+            description=f"{name}"
+        ) for key, name in default_param_list]
 
-    return {
-        "type": "option_string",
-        "options": {
-            **default_options,
-            "linear": {"display_name": gettext("Linear")},
-            "exponential": {"display_name": gettext("exponential")},
-            "scurve": {"display_name": gettext("scurve")},
-            "trapezoid": {"display_name": gettext("trapezoid")},
-            "gaussian": {"display_name": gettext("gaussian")},
-        },
-        "about": gettext(
-            "The function type to apply to the suitability factor."),
-        "name": gettext(f"{default_type} suitability function type")
-    }
+    return [
+        spec.OptionStringInput(
+            id=f'default_prod_funcs',
+            name=f"{default_type} suitability function type",
+            about="The function type to apply to the suitability factor.",
+            options=[
+                *default_options,
+                spec.Option(key="linear", description="Linear"),
+                spec.Option(key="exponential", description="exponential"),
+                spec.Option(key="scurve", description="scurve"),
+                spec.Option(key="trapezoid", description="trapezoid"),
+                spec.Option(key="gaussian", description="gaussian"),
+            ])]
 
 TEMP_SPEC_FUNC_TYPES = temp_spec_func_types
 
-MODEL_SPEC = {
-    'model_id': 'schistosomiasis',
-    'model_title': gettext(SCHISTO),
-    'pyname': 'natcap.invest.schistosomiasis',
-    'userguide': "schistosomiasis.html",
-    'aliases': (),
-    "ui_spec": {
-        "order": [
-            ['workspace_dir', 'results_suffix'],
-            ['aoi_vector_path'],
-            ['decay_distance'],
-            ["water_presence_path"],
-            ["population_count_path", "population_func_type",
-             {"Population parameters": list(FUNC_PARAMS['population'].keys())}],
+
+MODEL_SPEC = spec.ModelSpec(
+    model_id='schistosomiasis',
+    model_title="Schistosomiasis",
+    userguide="https://github.com/natcap/invest-schistosomiasis",
+    validate_spatial_overlap=True,
+    different_projections_ok=False,
+    input_field_order=[
+        ['workspace_dir', 'results_suffix'],
+        ['aoi_path'],
+        ['decay_distance'],
+        ["water_presence_path"],
+        ["population_count_path", "population_func_type",
+         {"Population parameters": FUNC_PARAMS['population']}],
 #            ["calc_water_proximity", "water_proximity_func_type",
-#             {"Water proximity parameters": list(FUNC_PARAMS['water_proximity'].keys())}],
-            ["calc_water_depth", "water_depth_weight"],
-            ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
-            "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
-              {"Snail temperature parameters": list(FUNC_PARAMS['snail_water_temp'].keys())},
-            "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
-              {"Parasite temperature parameters": list(FUNC_PARAMS['parasite_water_temp'].keys())}],
-            ["calc_ndvi", "ndvi_func_type",
-             "ndvi_dry_path", "ndvi_dry_weight",
-             "ndvi_wet_path", "ndvi_wet_weight",
-             {"NDVI parameters": list(FUNC_PARAMS['ndvi'].keys())}],
-            ["calc_water_velocity", "water_velocity_func_type",
-             "dem_path", "water_velocity_weight",
-             {"Water velocity parameters": list(FUNC_PARAMS['water_velocity'].keys())}],
-            ["calc_custom_one", "custom_one_func_type",
-             "custom_one_path", "custom_one_weight",
-             {"Input parameters": list(FUNC_PARAMS_USER('one').keys())}],
-            ["calc_custom_two", "custom_two_func_type",
-             "custom_two_path", "custom_two_weight",
-             {"Input parameters": list(FUNC_PARAMS_USER('two').keys())}],
-            ["calc_custom_three", "custom_three_func_type",
-             "custom_three_path", "custom_three_weight",
-             {"Input parameters": list(FUNC_PARAMS_USER('three').keys())}],
-        ],
-        "hidden": ["n_workers"],
-        "forum_tag": 'schisto',
-        "sampledata": {
-            "filename": "schisto-demo.zip"
-        }
-    },
-    'args_with_spatial_overlap': {
-        'spatial_keys': [
-            'aoi_vector_path', 'population_count_path', 'dem_path',
-            'water_temp_dry_raster_path', 'water_temp_wet_raster_path',
-            'ndvi_dry_raster_path', 'ndvi_wet_raster_path', 'water_presence_path',
-            'custom_one_path', 'custom_two_path', 'custom_three_path'],
-        'different_projections_ok': True,
-    },
-    'args': {
-        'workspace_dir': spec_utils.WORKSPACE,
-        'results_suffix': spec_utils.SUFFIX,
-        'n_workers': spec_utils.N_WORKERS,
-        "decay_distance": {
-            "type": "number",
-            "units": u.meter,
-            "about": gettext("Maximum threat distance from water risk."),
-            "name": gettext("max decay distance")
-        },
-        "aoi_vector_path": {
-            **spec_utils.AOI,
-            "projected": True,
-            "projection_units": u.meter,
-            "about": gettext(
-                "Map of the area(s) of interest over which to run the model "
-                "and aggregate valuation results. Required if Run Valuation "
-                "is selected and the Grid Connection Points table is provided."
-            )
-        },
-        **FUNC_PARAMS['population'],
-        'population_count_path': {
-            'type': 'raster',
-            'name': 'population raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the number of inhabitants per pixel."
-            ),
-            "required": True,
-        },
+#             {"Water proximity parameters": FUNC_PARAMS['water_proximity']}],
+        ["calc_water_depth", "water_depth_weight"],
+        ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
+        "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
+          {"Snail temperature parameters": FUNC_PARAMS['snail_water_temp']},
+        "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
+          {"Parasite temperature parameters": FUNC_PARAMS['parasite_water_temp']}],
+        ["calc_ndvi", "ndvi_func_type",
+         "ndvi_dry_path", "ndvi_dry_weight",
+         "ndvi_wet_path", "ndvi_wet_weight",
+         {"NDVI parameters": FUNC_PARAMS['ndvi']}],
+        ["calc_water_velocity", "water_velocity_func_type",
+         "dem_path", "water_velocity_weight",
+         {"Water velocity parameters": FUNC_PARAMS['water_velocity']}],
+        ["calc_custom_one", "custom_one_func_type",
+         "custom_one_path", "custom_one_weight",
+         {"Input parameters": FUNC_PARAMS_USER('one')}],
+        ["calc_custom_two", "custom_two_func_type",
+         "custom_two_path", "custom_two_weight",
+         {"Input parameters": FUNC_PARAMS_USER('two')}],
+        ["calc_custom_three", "custom_three_func_type",
+         "custom_three_path", "custom_three_weight",
+         {"Input parameters": FUNC_PARAMS_USER('three')}],
+    ],
+    inputs=[
+        spec.WORKSPACE,
+        spec.SUFFIX,
+        spec.N_WORKERS,
+        spec.NumberInput(
+            id="decay_distance",
+            name="max decay distance",
+            about="Maximum threat distance from water risk.",
+            units=u.meter,
+        ),
+        spec.AOI,
+        *FUNC_PARAMS['population'],
+        spec.SingleBandRasterInput(
+            id='population_count_path',
+            name='population raster',
+            about="A raster representing the number of inhabitants per pixel.",
+            data_type=float,
+            units=u.meter,
+        ),
+        spec.
         "population_func_type": {
             **SPEC_FUNC_TYPES,
             "required": True,
         },
+    ]
+)
+MODEL_SPEC = {
+    'args': {
         "calc_water_depth": {
             "type": "boolean",
             "about": gettext(
@@ -899,7 +890,7 @@ def execute(args):
             }
 
     # Get the extents and center of the AOI for notebook companion
-    aoi_info = pygeoprocessing.get_vector_info(args['aoi_vector_path'])
+    aoi_info = pygeoprocessing.get_vector_info(args['aoi_path'])
     # WGS84 WKT
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
@@ -939,7 +930,7 @@ def execute(args):
         pygeoprocessing.align_and_resize_raster_stack,
         kwargs={
             'base_raster_path_list': raster_input_list,
-            'base_vector_path_list': [args['aoi_vector_path']],
+            'base_vector_path_list': [args['aoi_path']],
             'target_raster_path_list': aligned_input_list,
             'resample_method_list': ['near']*len(raster_input_list),
             'target_pixel_size': squared_default_pixel_size,
@@ -1271,7 +1262,7 @@ def execute(args):
         pygeoprocessing.mask_raster,
         kwargs={
             'base_raster_path_band': (convolved_hab_risk_path, 1),
-            'mask_vector_path': args['aoi_vector_path'],
+            'mask_vector_path': args['aoi_path'],
             'target_mask_raster_path': masked_convolved_path,
         },
         target_path_list=[masked_convolved_path],
@@ -1360,7 +1351,7 @@ def execute(args):
     aoi_geojson_task = graph.add_task(
         func=pygeoprocessing.reproject_vector,
         kwargs={
-            'base_vector_path': args['aoi_vector_path'],
+            'base_vector_path': args['aoi_path'],
             'target_projection_wkt': target_wkt,
             'target_path': aoi_geojson_path,
             'driver_name': 'GeoJSON',
