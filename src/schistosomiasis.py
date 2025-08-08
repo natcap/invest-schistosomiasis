@@ -69,11 +69,14 @@ PARASITE_OPTIONS = [
         ("sh", "Default: S. haematobium"),
         ("sm", "Defualt: S. mansoni")]
 
-SPEC_FUNC_TYPES = [
-    spec.OptionStringInput(
-        id="production_functions",
+def get_spec_func_types(input_id, required=True, allowed=True):
+    """Construct function choice OptionStringInput."""
+    return spec.OptionStringInput(
+        id=f"{input_id}",
         name="Suitability function type",
         about="The function type to apply to the suitability factor.",
+        required=required,
+        allowed=allowed,
         options=[
             *default_options,
             spec.Option(key="default", description="Default used in paper."),
@@ -82,7 +85,7 @@ SPEC_FUNC_TYPES = [
             spec.Option(key="scurve", description="scurve"),
             spec.Option(key="trapezoid", description="trapezoid"),
             spec.Option(key="gaussian", description="gaussian"),
-        ])]
+        ])
 
 CUSTOM_SPEC_FUNC_TYPES = [
     spec.OptionStringInput(
@@ -334,62 +337,53 @@ MODEL_SPEC = spec.ModelSpec(
             data_type=float,
             units=u.meter,
         ),
-        spec.
-        "population_func_type": {
-            **SPEC_FUNC_TYPES,
-            "required": True,
-        },
+        get_spec_func_types("population_func_types"),
+        spec.BooleanInput(
+            id="calc_water_depth",
+            name="calculate water depth",
+            about=("Calculate water depth. Using the water presence raster"
+                   " input, uses a water distance from shore as a proxy for"
+                   " depth."),
+            required=False
+        ),
+        spec.RatioInput(
+            id="water_depth_weight",
+            name="water depth risk weight",
+            about="The weight this factor should have on overall risk.",
+            required="calc_water_depth",
+            allowed="calc_water_depth"
+        ),
+#        spec.BooleanInput(
+#           id="calc_water_proximity,
+#           name="calculate water proximity",
+#           about=("Calculate water proximity. Uses the water presence raster"
+#                  " input."),
+#           required=False
+#        ),
+#         get_spec_func_types(
+#            "water_proximity_func_type", "calc_water_proximity",
+#            "calc_water_proximity"),
+#        ),
+#        *FUNC_PARAMS['water_proximity'],
+        spec.SingleBandRasterInput(
+            id="water_presence_path",
+            name='water presence',
+            data_type=int,
+            about="A raster indicating presence of water.",
+        ),
+        spec.BooleanInput(
+            id="calc_water_velocity",
+            name="calculate water velocity",
+            about="Calculate water velocity.",
+            required=False
+        ),
+        get_spec_func_types(
+            "water_velocity_func_type", "calc_water_velocity",
+            "calc_water_velocity"),
     ]
 )
 MODEL_SPEC = {
     'args': {
-        "calc_water_depth": {
-            "type": "boolean",
-            "about": gettext(
-                "Calculate water depth. Using the water presence raster input, "
-                "uses a water distance from shore as a proxy for depth."),
-            "name": gettext("calculate water depth"),
-            "required": False
-        },
-        "water_depth_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("water depth risk weight"),
-            "required": "calc_water_depth",
-            "allowed": "calc_water_depth"
-        },
-#        "calc_water_proximity": {
-#            "type": "boolean",
-#            "about": gettext("Calculate water proximity. Uses the water presence raster input."),
-#            "name": gettext("calculate water proximity"),
-#            "required": False
-#        },
-#        "water_proximity_func_type": {
-#            **SPEC_FUNC_TYPES,
-#            "required": "calc_water_proximity",
-#            "allowed": "calc_water_proximity",
-#        },
-#        **FUNC_PARAMS['water_proximity'],
-        "water_presence_path": {
-            'type': 'raster',
-            'name': 'water presence',
-            'bands': {1: {'type': 'integer'}},
-            'about': (
-                "A raster indicating presence of water."
-            ),
-            "required": True,
-        },
-        "calc_water_velocity": {
-            "type": "boolean",
-            "about": gettext("Calculate water velocity."),
-            "name": gettext("calculate water velocity"),
-            "required": False
-        },
-        "water_velocity_func_type": {
-            **SPEC_FUNC_TYPES,
-            "required": "calc_water_velocity",
-            "allowed": "calc_water_velocity"
-        },
         **FUNC_PARAMS['water_velocity'],
         'dem_path': {
             **spec_utils.DEM,
