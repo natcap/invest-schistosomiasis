@@ -14,11 +14,6 @@ import shutil
 import subprocess
 import json
 
-from natcap.invest import spec
-from natcap.invest import gettext
-from natcap.invest import utils
-from natcap.invest.spec_utils import u
-from natcap.invest import validation
 import numpy
 import pygeoprocessing
 import pygeoprocessing.kernels
@@ -28,6 +23,12 @@ from osgeo import osr
 from osgeo_utils import gdal2tiles
 
 import matplotlib.pyplot as plt
+
+from natcap.invest import spec
+from natcap.invest import gettext
+from natcap.invest import utils
+from natcap.invest import validation
+from natcap.invest.unit_registry import u
 
 gdal.UseExceptions()
 
@@ -78,7 +79,6 @@ def get_spec_func_types(input_id, required=True, allowed=True):
         required=required,
         allowed=allowed,
         options=[
-            *default_options,
             spec.Option(key="default", description="Default used in paper."),
             spec.Option(key="linear", description="Linear"),
             spec.Option(key="exponential", description="exponential"),
@@ -87,19 +87,17 @@ def get_spec_func_types(input_id, required=True, allowed=True):
             spec.Option(key="gaussian", description="gaussian"),
         ])
 
-CUSTOM_SPEC_FUNC_TYPES = [
-    spec.OptionStringInput(
+CUSTOM_SPEC_FUNC_TYPES = spec.OptionStringInput(
         id="production_functions",
         name="Suitability function type",
         about="The function type to apply to the suitability factor.",
         options=[
-            *default_options,
             spec.Option(key="linear", description="Linear"),
             spec.Option(key="exponential", description="exponential"),
             spec.Option(key="scurve", description="scurve"),
             spec.Option(key="trapezoid", description="trapezoid"),
             spec.Option(key="gaussian", description="gaussian"),
-        ])]
+        ])
 
 SPEC_FUNC_COLS = {
     'linear': {
@@ -229,7 +227,7 @@ FUNC_PARAMS = {
             allowed=f"calc_ndvi and ndvi_func_type == '{fn}'",
             units=None
         )
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
     ]
 }
 
@@ -263,8 +261,7 @@ def temp_spec_func_types(default_type):
             description=f"{name}"
         ) for key, name in default_param_list]
 
-    return [
-        spec.OptionStringInput(
+    return spec.OptionStringInput(
             id=f'default_prod_funcs',
             name=f"{default_type} suitability function type",
             about="The function type to apply to the suitability factor.",
@@ -275,9 +272,7 @@ def temp_spec_func_types(default_type):
                 spec.Option(key="scurve", description="scurve"),
                 spec.Option(key="trapezoid", description="trapezoid"),
                 spec.Option(key="gaussian", description="gaussian"),
-            ])]
-
-TEMP_SPEC_FUNC_TYPES = temp_spec_func_types
+            ])
 
 
 MODEL_SPEC = spec.ModelSpec(
@@ -292,31 +287,39 @@ MODEL_SPEC = spec.ModelSpec(
         ['decay_distance'],
         ["water_presence_path"],
         ["population_count_path", "population_func_type",
-         {"Population parameters": FUNC_PARAMS['population']}],
+         #{"Population parameters": [key.id for key in FUNC_PARAMS['population']]}],
+         *[key.id for key in FUNC_PARAMS['population']]],
 #            ["calc_water_proximity", "water_proximity_func_type",
 #             {"Water proximity parameters": FUNC_PARAMS['water_proximity']}],
         ["calc_water_depth", "water_depth_weight"],
         ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
         "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
-          {"Snail temperature parameters": FUNC_PARAMS['snail_water_temp']},
+         # {"Snail temperature parameters": FUNC_PARAMS['snail_water_temp']},
+         *[key.id for key in FUNC_PARAMS['snail_water_temp']],
         "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
-          {"Parasite temperature parameters": FUNC_PARAMS['parasite_water_temp']}],
+          #{"Parasite temperature parameters": FUNC_PARAMS['parasite_water_temp']}],
+         *[key.id for key in FUNC_PARAMS['parasite_water_temp']]],
         ["calc_ndvi", "ndvi_func_type",
          "ndvi_dry_path", "ndvi_dry_weight",
          "ndvi_wet_path", "ndvi_wet_weight",
-         {"NDVI parameters": FUNC_PARAMS['ndvi']}],
+         #{"NDVI parameters": FUNC_PARAMS['ndvi']}],
+         *[key.id for key in FUNC_PARAMS['ndvi']]],
         ["calc_water_velocity", "water_velocity_func_type",
          "dem_path", "water_velocity_weight",
-         {"Water velocity parameters": FUNC_PARAMS['water_velocity']}],
+         #{"Water velocity parameters": FUNC_PARAMS['water_velocity']}],
+         *[key.id for key in FUNC_PARAMS['water_velocity']]],
         ["calc_custom_one", "custom_one_func_type",
          "custom_one_path", "custom_one_weight",
-         {"Input parameters": FUNC_PARAMS_USER('one')}],
+         #{"Input parameters": FUNC_PARAMS_USER('one')}],
+         *[key.id for key in FUNC_PARAMS_USER('one')]],
         ["calc_custom_two", "custom_two_func_type",
          "custom_two_path", "custom_two_weight",
-         {"Input parameters": FUNC_PARAMS_USER('two')}],
+         #{"Input parameters": FUNC_PARAMS_USER('two')}],
+         *[key.id for key in FUNC_PARAMS_USER('two')]],
         ["calc_custom_three", "custom_three_func_type",
          "custom_three_path", "custom_three_weight",
-         {"Input parameters": FUNC_PARAMS_USER('three')}],
+         #j{"Input parameters": FUNC_PARAMS_USER('three')}],
+         *[key.id for key in FUNC_PARAMS_USER('three')]],
     ],
     inputs=[
         spec.WORKSPACE,
@@ -337,7 +340,7 @@ MODEL_SPEC = spec.ModelSpec(
             data_type=float,
             units=u.meter,
         ),
-        get_spec_func_types("population_func_types"),
+        get_spec_func_types("population_func_type"),
         spec.BooleanInput(
             id="calc_water_depth",
             name="calculate water depth",
@@ -368,8 +371,9 @@ MODEL_SPEC = spec.ModelSpec(
         spec.SingleBandRasterInput(
             id="water_presence_path",
             name='water presence',
-            data_type=int,
             about="A raster indicating presence of water.",
+            data_type=int,
+            units=None,
         ),
         spec.BooleanInput(
             id="calc_water_velocity",
@@ -471,6 +475,7 @@ MODEL_SPEC = spec.ModelSpec(
         spec.SingleBandRasterInput(
             id="ndvi_dry_path",
             name='ndvi dry raster',
+            units=None,
             projected=True,
             projection_units=u.meter,
             about= "A raster representing the ndvi for dry season.",
@@ -487,6 +492,7 @@ MODEL_SPEC = spec.ModelSpec(
         spec.SingleBandRasterInput(
             id="ndvi_wet_path",
             name='ndvi wet raster',
+            units=None,
             projected=True,
             projection_units=u.meter,
             about="A raster representing the ndvi for wet season.",
@@ -506,7 +512,7 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
-        *CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
             id="custom_one_func_type",
             required="calc_custom_one",
             allowed="calc_custom_one"
@@ -515,6 +521,7 @@ MODEL_SPEC = spec.ModelSpec(
         spec.SingleBandRasterInput(
             id='custom_one_path',
             name='custom raster',
+            units=None,
             projected=True,
             projection_units=u.meter,
             about="A raster representing the user suitability.",
@@ -534,7 +541,7 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
-        *CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
             id="custom_two_func_type",
             required="calc_custom_two",
             allowed="calc_custom_two"
@@ -543,6 +550,7 @@ MODEL_SPEC = spec.ModelSpec(
         spec.SingleBandRasterInput(
             id='custom_two_path',
             name='custom raster',
+            units=None,
             projected=True,
             projection_units=u.meter,
             about="A raster representing the user suitability.",
@@ -562,7 +570,7 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
-        *CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
             id="custom_three_func_type",
             required="calc_custom_three",
             allowed="calc_custom_three"
@@ -571,6 +579,7 @@ MODEL_SPEC = spec.ModelSpec(
         spec.SingleBandRasterInput(
             id='custom_three_path',
             name='custom raster',
+            units=None,
             projected=True,
             projection_units=u.meter,
             about="A raster representing the user suitability.",
