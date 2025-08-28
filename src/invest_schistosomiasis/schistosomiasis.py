@@ -14,11 +14,6 @@ import shutil
 import subprocess
 import json
 
-from natcap.invest import spec_utils
-from natcap.invest import gettext
-from natcap.invest import utils
-from natcap.invest.spec_utils import u
-from natcap.invest import validation
 import numpy
 import pygeoprocessing
 import pygeoprocessing.kernels
@@ -28,6 +23,12 @@ from osgeo import osr
 from osgeo_utils import gdal2tiles
 
 import matplotlib.pyplot as plt
+
+from natcap.invest import spec
+from natcap.invest import gettext
+from natcap.invest import utils
+from natcap.invest import validation
+from natcap.invest.unit_registry import u
 
 gdal.UseExceptions()
 
@@ -69,34 +70,34 @@ PARASITE_OPTIONS = [
         ("sh", "Default: S. haematobium"),
         ("sm", "Defualt: S. mansoni")]
 
-SPEC_FUNC_TYPES = {
-    "type": "option_string",
-    "options": {
-        "default": {"display_name": gettext("Default used in paper.")},
-        "linear": {"display_name": gettext("Linear")},
-        "exponential": {"display_name": gettext("exponential")},
-        "scurve": {"display_name": gettext("scurve")},
-        "trapezoid": {"display_name": gettext("trapezoid")},
-        "gaussian": {"display_name": gettext("gaussian")},
-    },
-    "about": gettext(
-        "The function type to apply to the suitability factor."),
-    "name": gettext("Suitability function type")
-}
+def get_spec_func_types(input_id, required=True, allowed=True):
+    """Construct function choice OptionStringInput."""
+    return spec.OptionStringInput(
+        id=f"{input_id}",
+        name="Suitability function type",
+        about="The function type to apply to the suitability factor.",
+        required=required,
+        allowed=allowed,
+        options=[
+            spec.Option(key="default", description="Default used in paper."),
+            spec.Option(key="linear", description="Linear"),
+            spec.Option(key="exponential", description="exponential"),
+            spec.Option(key="scurve", description="scurve"),
+            spec.Option(key="trapezoid", description="trapezoid"),
+            spec.Option(key="gaussian", description="gaussian"),
+        ])
 
-CUSTOM_SPEC_FUNC_TYPES = {
-    "type": "option_string",
-    "options": {
-        "linear": {"display_name": gettext("Linear")},
-        "exponential": {"display_name": gettext("exponential")},
-        "scurve": {"display_name": gettext("scurve")},
-        "trapezoid": {"display_name": gettext("trapezoid")},
-        "gaussian": {"display_name": gettext("gaussian")},
-    },
-    "about": gettext(
-        "The function type to apply to the suitability factor."),
-    "name": gettext("Suitability function type")
-}
+CUSTOM_SPEC_FUNC_TYPES = spec.OptionStringInput(
+        id="production_functions",
+        name="Suitability function type",
+        about="The function type to apply to the suitability factor.",
+        options=[
+            spec.Option(key="linear", description="Linear"),
+            spec.Option(key="exponential", description="exponential"),
+            spec.Option(key="scurve", description="scurve"),
+            spec.Option(key="trapezoid", description="trapezoid"),
+            spec.Option(key="gaussian", description="gaussian"),
+        ])
 
 SPEC_FUNC_COLS = {
     'linear': {
@@ -162,72 +163,86 @@ SPEC_FUNC_COLS = {
 FUNCS = ['linear', 'trapezoid', 'gaussian', 'scurve', 'exponential']
 
 FUNC_PARAMS = {
-    'population': {
-        f'population_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"population_func_type == '{fn}'",
-            "allowed": f"population_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'water_proximity': {
-        f'water_proximity_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_water_proximity and water_proximity_func_type == '{fn}'",
-            "allowed": f"calc_water_proximity and water_proximity_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'water_velocity': {
-        f'water_velocity_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_water_velocity and water_velocity_func_type == '{fn}'",
-            "allowed": f"calc_water_velocity and water_velocity_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'snail_water_temp': {
-        f'snail_water_temp_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_temperature and snail_water_temp_func_type == '{fn}'",
-            "allowed": f"calc_temperature and snail_water_temp_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'parasite_water_temp': {
-        f'parasite_water_temp_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
-            "allowed": f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    },
-    'ndvi': {
-        f'ndvi_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_ndvi and ndvi_func_type == '{fn}'",
-            "allowed": f"calc_ndvi and ndvi_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    }
+    'population': [
+        spec.NumberInput(
+            id=f'population_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"population_func_type == '{fn}'",
+            allowed=f"population_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'water_proximity': [
+        spec.NumberInput(
+            id=f'water_proximity_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_water_proximity and water_proximity_func_type == '{fn}'",
+            allowed=f"calc_water_proximity and water_proximity_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'water_velocity': [
+        spec.NumberInput(
+            id=f'water_velocity_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_water_velocity and water_velocity_func_type == '{fn}'",
+            allowed=f"calc_water_velocity and water_velocity_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'snail_water_temp': [
+        spec.NumberInput(
+            id=f'snail_water_temp_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_temperature and snail_water_temp_func_type == '{fn}'",
+            allowed=f"calc_temperature and snail_water_temp_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'parasite_water_temp': [
+        spec.NumberInput(
+            id=f'parasite_water_temp_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
+            allowed=f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'ndvi': [
+        spec.NumberInput(
+            id=f'ndvi_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_ndvi and ndvi_func_type == '{fn}'",
+            allowed=f"calc_ndvi and ndvi_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ]
 }
 
 def custom_input_id(input_id):
-    return {
-        f'custom_{input_id}_{fn}_param_{key}': {
-            **spec,
-            'name': f'{key}',
-            "required": f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
-            "allowed": f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
-        }
-        for fn in FUNCS for key, spec in SPEC_FUNC_COLS[fn].items()
-    }
+    return [
+        spec.NumberInput(
+            id=f'custom_{input_id}_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
+            allowed=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ]
 
 FUNC_PARAMS_USER = custom_input_id
 
@@ -240,429 +255,382 @@ def temp_spec_func_types(default_type):
 
     default_param_list = options_dict[default_type]
 
-    default_options = {
-        f"{key}":{"display_name": gettext(f"{name}")} for key, name in default_param_list
-    }
+    default_options = [
+        spec.Option(
+            key=f"{key}",
+            description=f"{name}"
+        ) for key, name in default_param_list]
 
-    return {
-        "type": "option_string",
-        "options": {
-            **default_options,
-            "linear": {"display_name": gettext("Linear")},
-            "exponential": {"display_name": gettext("exponential")},
-            "scurve": {"display_name": gettext("scurve")},
-            "trapezoid": {"display_name": gettext("trapezoid")},
-            "gaussian": {"display_name": gettext("gaussian")},
-        },
-        "about": gettext(
-            "The function type to apply to the suitability factor."),
-        "name": gettext(f"{default_type} suitability function type")
-    }
+    return spec.OptionStringInput(
+            id=f'default_prod_funcs',
+            name=f"{default_type} suitability function type",
+            about="The function type to apply to the suitability factor.",
+            options=[
+                *default_options,
+                spec.Option(key="linear", description="Linear"),
+                spec.Option(key="exponential", description="exponential"),
+                spec.Option(key="scurve", description="scurve"),
+                spec.Option(key="trapezoid", description="trapezoid"),
+                spec.Option(key="gaussian", description="gaussian"),
+            ])
 
-TEMP_SPEC_FUNC_TYPES = temp_spec_func_types
 
-MODEL_SPEC = {
-    'model_id': 'schistosomiasis',
-    'model_title': gettext(SCHISTO),
-    'pyname': 'natcap.invest.schistosomiasis',
-    'userguide': "schistosomiasis.html",
-    'aliases': (),
-    "ui_spec": {
-        "order": [
-            ['workspace_dir', 'results_suffix'],
-            ['aoi_vector_path'],
-            ['decay_distance'],
-            ["water_presence_path"],
-            ["population_count_path", "population_func_type",
-             {"Population parameters": list(FUNC_PARAMS['population'].keys())}],
+MODEL_SPEC = spec.ModelSpec(
+    model_id='schistosomiasis',
+    model_title="Schistosomiasis",
+    userguide="https://github.com/natcap/invest-schistosomiasis",
+    validate_spatial_overlap=True,
+    different_projections_ok=False,
+    input_field_order=[
+        ['workspace_dir', 'results_suffix'],
+        ['aoi_path'],
+        ['decay_distance'],
+        ["water_presence_path"],
+        ["population_count_path", "population_func_type",
+         {"Population parameters": [key.id for key in FUNC_PARAMS['population']]}],
 #            ["calc_water_proximity", "water_proximity_func_type",
-#             {"Water proximity parameters": list(FUNC_PARAMS['water_proximity'].keys())}],
-            ["calc_water_depth", "water_depth_weight"],
-            ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
-            "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
-              {"Snail temperature parameters": list(FUNC_PARAMS['snail_water_temp'].keys())},
-            "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
-              {"Parasite temperature parameters": list(FUNC_PARAMS['parasite_water_temp'].keys())}],
-            ["calc_ndvi", "ndvi_func_type",
-             "ndvi_dry_path", "ndvi_dry_weight",
-             "ndvi_wet_path", "ndvi_wet_weight",
-             {"NDVI parameters": list(FUNC_PARAMS['ndvi'].keys())}],
-            ["calc_water_velocity", "water_velocity_func_type",
-             "dem_path", "water_velocity_weight",
-             {"Water velocity parameters": list(FUNC_PARAMS['water_velocity'].keys())}],
-            ["calc_custom_one", "custom_one_func_type",
-             "custom_one_path", "custom_one_weight",
-             {"Input parameters": list(FUNC_PARAMS_USER('one').keys())}],
-            ["calc_custom_two", "custom_two_func_type",
-             "custom_two_path", "custom_two_weight",
-             {"Input parameters": list(FUNC_PARAMS_USER('two').keys())}],
-            ["calc_custom_three", "custom_three_func_type",
-             "custom_three_path", "custom_three_weight",
-             {"Input parameters": list(FUNC_PARAMS_USER('three').keys())}],
-        ],
-        "hidden": ["n_workers"],
-        "forum_tag": 'schisto',
-        "sampledata": {
-            "filename": "schisto-demo.zip"
-        }
-    },
-    'args_with_spatial_overlap': {
-        'spatial_keys': [
-            'aoi_vector_path', 'population_count_path', 'dem_path',
-            'water_temp_dry_raster_path', 'water_temp_wet_raster_path',
-            'ndvi_dry_raster_path', 'ndvi_wet_raster_path', 'water_presence_path',
-            'custom_one_path', 'custom_two_path', 'custom_three_path'],
-        'different_projections_ok': True,
-    },
-    'args': {
-        'workspace_dir': spec_utils.WORKSPACE,
-        'results_suffix': spec_utils.SUFFIX,
-        'n_workers': spec_utils.N_WORKERS,
-        "decay_distance": {
-            "type": "number",
-            "units": u.meter,
-            "about": gettext("Maximum threat distance from water risk."),
-            "name": gettext("max decay distance")
-        },
-        "aoi_vector_path": {
-            **spec_utils.AOI,
-            "projected": True,
-            "projection_units": u.meter,
-            "about": gettext(
-                "Map of the area(s) of interest over which to run the model "
-                "and aggregate valuation results. Required if Run Valuation "
-                "is selected and the Grid Connection Points table is provided."
-            )
-        },
-        **FUNC_PARAMS['population'],
-        'population_count_path': {
-            'type': 'raster',
-            'name': 'population raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the number of inhabitants per pixel."
+#             {"Water proximity parameters": FUNC_PARAMS['water_proximity']}],
+        ["calc_water_depth", "water_depth_weight"],
+        ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
+        "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
+         {"Snail temperature parameters": [key.id for key in FUNC_PARAMS['snail_water_temp']]},
+        "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
+         {"Parasite temperature parameters": [key.id for key in FUNC_PARAMS['parasite_water_temp']]}],
+        ["calc_ndvi", "ndvi_func_type",
+         "ndvi_dry_path", "ndvi_dry_weight",
+         "ndvi_wet_path", "ndvi_wet_weight",
+         {"NDVI parameters": [key.id for key in FUNC_PARAMS['ndvi']]}],
+        ["calc_water_velocity", "water_velocity_func_type",
+         "dem_path", "water_velocity_weight",
+         {"Water velocity parameters": [key.id for key in FUNC_PARAMS['water_velocity']]}],
+        ["calc_custom_one", "custom_one_func_type",
+         "custom_one_path", "custom_one_weight",
+         {"Input parameters": [key.id for key in FUNC_PARAMS_USER('one')]}],
+        ["calc_custom_two", "custom_two_func_type",
+         "custom_two_path", "custom_two_weight",
+         {"Input parameters": [key.id for key in FUNC_PARAMS_USER('two')]}],
+        ["calc_custom_three", "custom_three_func_type",
+         "custom_three_path", "custom_three_weight",
+         {"Input parameters": [key.id for key in FUNC_PARAMS_USER('three')]}],
+    ],
+    inputs=[
+        spec.WORKSPACE,
+        spec.SUFFIX,
+        spec.N_WORKERS,
+        spec.NumberInput(
+            id="decay_distance",
+            name="max decay distance",
+            about="Maximum threat distance from water risk.",
+            units=u.meter,
+        ),
+        spec.AOI,
+        *FUNC_PARAMS['population'],
+        spec.SingleBandRasterInput(
+            id='population_count_path',
+            name='population raster',
+            about="A raster representing the number of inhabitants per pixel.",
+            data_type=float,
+            units=u.meter,
+        ),
+        get_spec_func_types("population_func_type"),
+        spec.BooleanInput(
+            id="calc_water_depth",
+            name="calculate water depth",
+            about=("Calculate water depth. Using the water presence raster"
+                   " input, uses a water distance from shore as a proxy for"
+                   " depth."),
+            required=False
+        ),
+        spec.RatioInput(
+            id="water_depth_weight",
+            name="water depth risk weight",
+            about="The weight this factor should have on overall risk.",
+            required="calc_water_depth",
+            allowed="calc_water_depth"
+        ),
+#        spec.BooleanInput(
+#           id="calc_water_proximity,
+#           name="calculate water proximity",
+#           about=("Calculate water proximity. Uses the water presence raster"
+#                  " input."),
+#           required=False
+#        ),
+#         get_spec_func_types(
+#            "water_proximity_func_type", "calc_water_proximity",
+#            "calc_water_proximity"),
+#        ),
+#        *FUNC_PARAMS['water_proximity'],
+        spec.SingleBandRasterInput(
+            id="water_presence_path",
+            name='water presence',
+            about="A raster indicating presence of water.",
+            data_type=int,
+            units=None,
+        ),
+        spec.BooleanInput(
+            id="calc_water_velocity",
+            name="calculate water velocity",
+            about="Calculate water velocity.",
+            required=False
+        ),
+        get_spec_func_types(
+            "water_velocity_func_type", "calc_water_velocity",
+            "calc_water_velocity"),
+        *FUNC_PARAMS['water_velocity'],
+        spec.DEM.model_copy(update=dict(
+            required="calc_water_velocity",
+            allowed="calc_water_velocity")
+        ),
+        spec.RatioInput(
+            id="water_velocity_weight",
+            about="The weight this factor should have on overall risk.",
+            name="water velocity risk weight",
+            required="calc_water_velocity",
+            allowed="calc_water_velocity"
+        ),
+        spec.BooleanInput(
+            id="calc_temperature",
+            about="Calculate water temperature.",
+            name="calculate water temperature",
+            required=False
+        ),
+        spec.SingleBandRasterInput(
+            id='water_temp_dry_path',
+            name='dry season temperature raster',
+            data_type=float,
+            units=u.celsius,
+            projected=True,
+            projection_units=u.meter,
+            about="A raster representing the water temp for dry season.",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        ),
+        spec.SingleBandRasterInput(
+            id='water_temp_wet_path',
+            name='wet season temperature raster',
+            data_type=float,
+            units=u.celsius,
+            projected=True,
+            projection_units=u.meter,
+            about="A raster representing the water temp for wet season.",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        ),
+        temp_spec_func_types('snail').model_copy(update=dict(
+            id="snail_water_temp_func_type",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        )),
+        *FUNC_PARAMS['snail_water_temp'],
+        temp_spec_func_types('parasite').model_copy(update=dict(
+            id="parasite_water_temp_func_type",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        )),
+        *FUNC_PARAMS['parasite_water_temp'],
+        spec.RatioInput(
+            id="snail_water_temp_dry_weight",
+            about="The weight this factor should have on overall risk.",
+            name="snail water temp dry risk weight",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        ),
+        spec.RatioInput(
+            id="snail_water_temp_wet_weight",
+            about="The weight this factor should have on overall risk.",
+            name="snail water temp wet risk weight",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        ),
+        spec.RatioInput(
+            id="parasite_water_temp_dry_weight",
+            about="The weight this factor should have on overall risk.",
+            name="parasite water temp dry risk weight",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        ),
+        spec.RatioInput(
+            id="parasite_water_temp_wet_weight",
+            about="The weight this factor should have on overall risk.",
+            name="parasite water temp wet risk weight",
+            required="calc_temperature",
+            allowed="calc_temperature"
+        ),
+        spec.BooleanInput(
+            id="calc_ndvi",
+            about="Calculate NDVI.",
+            name="calculate NDVI",
+            required=False
+        ),
+        get_spec_func_types("ndvi_func_type", "calc_ndvi", "calc_ndvi"),
+        *FUNC_PARAMS['ndvi'],
+        spec.SingleBandRasterInput(
+            id="ndvi_dry_path",
+            name='ndvi dry raster',
+            units=None,
+            projected=True,
+            projection_units=u.meter,
+            about= "A raster representing the ndvi for dry season.",
+            required="calc_ndvi",
+            allowed="calc_ndvi"
+        ),
+        spec.RatioInput(
+            id="ndvi_dry_weight",
+            about="The weight this factor should have on overall risk.",
+            name="ndvi dry risk weight",
+            required="calc_ndvi",
+            allowed="calc_ndvi"
+        ),
+        spec.SingleBandRasterInput(
+            id="ndvi_wet_path",
+            name='ndvi wet raster',
+            units=None,
+            projected=True,
+            projection_units=u.meter,
+            about="A raster representing the ndvi for wet season.",
+            required="calc_ndvi",
+            allowed="calc_ndvi"
+        ),
+        spec.RatioInput(
+            id="ndvi_wet_weight",
+            about="The weight this factor should have on overall risk.",
+            name="ndvi wet risk weight",
+            required="calc_ndvi",
+            allowed="calc_ndvi"
+        ),
+        spec.BooleanInput(
+            id="calc_custom_one",
+            required=False,
+            about="User defined suitability function.",
+            name="Additional user defined suitability input."
+        ),
+        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+            id="custom_one_func_type",
+            required="calc_custom_one",
+            allowed="calc_custom_one"
+        )),
+        *FUNC_PARAMS_USER('one'),
+        spec.SingleBandRasterInput(
+            id='custom_one_path',
+            name='custom raster',
+            units=None,
+            projected=True,
+            projection_units=u.meter,
+            about="A raster representing the user suitability.",
+            required="calc_custom_one",
+            allowed="calc_custom_one"
+        ),
+        spec.RatioInput(
+            id="custom_one_weight",
+            about="The weight this factor should have on overall risk.",
+            name="User risk weight",
+            required="calc_custom_one",
+            allowed="calc_custom_one"
+        ),
+        spec.BooleanInput(
+            id="calc_custom_two",
+            required=False,
+            about="User defined suitability function.",
+            name="Additional user defined suitability input."
+        ),
+        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+            id="custom_two_func_type",
+            required="calc_custom_two",
+            allowed="calc_custom_two"
+        )),
+        *FUNC_PARAMS_USER('two'),
+        spec.SingleBandRasterInput(
+            id='custom_two_path',
+            name='custom raster',
+            units=None,
+            projected=True,
+            projection_units=u.meter,
+            about="A raster representing the user suitability.",
+            required="calc_custom_two",
+            allowed="calc_custom_two"
+        ),
+        spec.RatioInput(
+            id="custom_two_weight",
+            about="The weight this factor should have on overall risk.",
+            name="User risk weight",
+            required="calc_custom_two",
+            allowed="calc_custom_two"
+        ),
+        spec.BooleanInput(
+            id="calc_custom_three",
+            required=False,
+            about="User defined suitability function.",
+            name="Additional user defined suitability input."
+        ),
+        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+            id="custom_three_func_type",
+            required="calc_custom_three",
+            allowed="calc_custom_three"
+        )),
+        *FUNC_PARAMS_USER('three'),
+        spec.SingleBandRasterInput(
+            id='custom_three_path',
+            name='custom raster',
+            units=None,
+            projected=True,
+            projection_units=u.meter,
+            about="A raster representing the user suitability.",
+            required="calc_custom_three",
+            allowed="calc_custom_three"
+        ),
+        spec.RatioInput(
+            id="custom_three_weight",
+            about="The weight this factor should have on overall risk.",
+            name="User risk weight",
+            required="calc_custom_three",
+            allowed="calc_custom_three"
+        ),
+    ],
+    outputs=[
+        spec.SingleBandRasterOutput(
+            id="B.tif",
+            about=gettext(
+                "Map of baseflow values, the contribution of a pixel to slow release flow"
+                " (which is not evapotranspired before it reaches the stream)."
             ),
-            "required": True,
-        },
-        "population_func_type": {
-            **SPEC_FUNC_TYPES,
-            "required": True,
-        },
-        "calc_water_depth": {
-            "type": "boolean",
-            "about": gettext(
-                "Calculate water depth. Using the water presence raster input, "
-                "uses a water distance from shore as a proxy for depth."),
-            "name": gettext("calculate water depth"),
-            "required": False
-        },
-        "water_depth_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("water depth risk weight"),
-            "required": "calc_water_depth",
-            "allowed": "calc_water_depth"
-        },
-#        "calc_water_proximity": {
-#            "type": "boolean",
-#            "about": gettext("Calculate water proximity. Uses the water presence raster input."),
-#            "name": gettext("calculate water proximity"),
-#            "required": False
-#        },
-#        "water_proximity_func_type": {
-#            **SPEC_FUNC_TYPES,
-#            "required": "calc_water_proximity",
-#            "allowed": "calc_water_proximity",
-#        },
-#        **FUNC_PARAMS['water_proximity'],
-        "water_presence_path": {
-            'type': 'raster',
-            'name': 'water presence',
-            'bands': {1: {'type': 'integer'}},
-            'about': (
-                "A raster indicating presence of water."
-            ),
-            "required": True,
-        },
-        "calc_water_velocity": {
-            "type": "boolean",
-            "about": gettext("Calculate water velocity."),
-            "name": gettext("calculate water velocity"),
-            "required": False
-        },
-        "water_velocity_func_type": {
-            **SPEC_FUNC_TYPES,
-            "required": "calc_water_velocity",
-            "allowed": "calc_water_velocity"
-        },
-        **FUNC_PARAMS['water_velocity'],
-        'dem_path': {
-            **spec_utils.DEM,
-            "projected": True,
-            "required": "calc_water_velocity",
-            "allowed": "calc_water_velocity"
-        },
-        "water_velocity_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("water velocity risk weight"),
-            "required": "calc_water_velocity",
-            "allowed": "calc_water_velocity"
-        },
-        "calc_temperature": {
-            "type": "boolean",
-            "about": gettext("Calculate water temperature."),
-            "name": gettext("calculate water temperature"),
-            "required": False
-        },
-        'water_temp_dry_path': {
-            'type': 'raster',
-            'name': 'dry season temperature raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the water temp for dry season."
-            ),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        'water_temp_wet_path': {
-            'type': 'raster',
-            'name': 'wet season temperature raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the water temp for wet season."
-            ),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        "snail_water_temp_func_type": {
-            **temp_spec_func_types('snail'),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        **FUNC_PARAMS['snail_water_temp'],
-        "parasite_water_temp_func_type": {
-            **temp_spec_func_types('parasite'),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        **FUNC_PARAMS['parasite_water_temp'],
-        "snail_water_temp_dry_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("snail water temp dry risk weight"),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        "snail_water_temp_wet_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("snail water temp wet risk weight"),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        "parasite_water_temp_dry_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("parasite water temp dry risk weight"),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        "parasite_water_temp_wet_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("parasite water temp wet risk weight"),
-            "required": "calc_temperature",
-            "allowed": "calc_temperature"
-        },
-        "calc_ndvi": {
-            "type": "boolean",
-            "about": gettext("Calculate NDVI."),
-            "name": gettext("calculate NDVI"),
-            "required": False
-        },
-        "ndvi_func_type": {
-            **SPEC_FUNC_TYPES,
-            "required": "calc_ndvi",
-            "allowed": "calc_ndvi"
-        },
-        **FUNC_PARAMS['ndvi'],
-        "ndvi_dry_path": {
-            'type': 'raster',
-            'name': 'ndvi dry raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the ndvi for dry season."
-            ),
-            "required": "calc_ndvi",
-            "allowed": "calc_ndvi"
-        },
-        "ndvi_dry_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("ndvi dry risk weight"),
-            "required": "calc_ndvi",
-            "allowed": "calc_ndvi"
-        },
-        "ndvi_wet_path": {
-            'type': 'raster',
-            'name': 'ndvi wet raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the ndvi for wet season."
-            ),
-            "required": "calc_ndvi",
-            "allowed": "calc_ndvi"
-        },
-        "ndvi_wet_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("ndvi wet risk weight"),
-            "required": "calc_ndvi",
-            "allowed": "calc_ndvi"
-        },
-        "calc_custom_one": {
-            "type": "boolean",
-            "required": False,
-            "about": gettext("User defined suitability function."),
-            "name": gettext("Additional user defined suitability input.")
-        },
-        "custom_one_func_type": {
-            **CUSTOM_SPEC_FUNC_TYPES,
-            "required": "calc_custom_one",
-            "allowed": "calc_custom_one"
-        },
-        **FUNC_PARAMS_USER('one'),
-        'custom_one_path': {
-            'type': 'raster',
-            'name': 'custom raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the user suitability."
-            ),
-            "required": "calc_custom_one",
-            "allowed": "calc_custom_one"
-        },
-        "custom_one_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("User risk weight"),
-            "required": "calc_custom_one",
-            "allowed": "calc_custom_one"
-        },
-        "calc_custom_two": {
-            "type": "boolean",
-            "required": "calc_custom_one",
-            "allowed": "calc_custom_one",
-            "about": gettext("User defined suitability function."),
-            "name": gettext("Additional user defined suitability input.")
-        },
-        "custom_two_func_type": {
-            **CUSTOM_SPEC_FUNC_TYPES,
-            "required": "calc_custom_two",
-            "allowed": "calc_custom_two"
-        },
-        **FUNC_PARAMS_USER('two'),
-        'custom_two_path': {
-            'type': 'raster',
-            'name': 'custom raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the user suitability."
-            ),
-            "required": "calc_custom_two",
-            "allowed": "calc_custom_two"
-        },
-        "custom_two_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("User risk weight"),
-            "required": "calc_custom_two",
-            "allowed": "calc_custom_two",
-        },
-        "calc_custom_three": {
-            "type": "boolean",
-            "required": "calc_custom_two",
-            "allowed": "calc_custom_two",
-            "about": gettext("User defined suitability function."),
-            "name": gettext("Additional user defined suitability input.")
-        },
-        "custom_three_func_type": {
-            **CUSTOM_SPEC_FUNC_TYPES,
-            "required": "calc_custom_three",
-            "allowed": "calc_custom_three"
-        },
-        **FUNC_PARAMS_USER('three'),
-        'custom_three_path': {
-            'type': 'raster',
-            'name': 'custom raster',
-            'bands': {
-                1: {'type': 'number', 'units': u.count}
-            },
-            'projected': True,
-            'projection_units': u.meter,
-            'about': (
-                "A raster representing the user suitability."
-            ),
-            "required": "calc_custom_three",
-            "allowed": "calc_custom_three"
-        },
-        "custom_three_weight": {
-            "type": "ratio",
-            "about": gettext("The weight this factor should have on overall risk."),
-            "name": gettext("User risk weight"),
-            "required": "calc_custom_three",
-            "allowed": "calc_custom_three"
-        },
-    },
-    'outputs': {
-        'output': {
-            "type": "directory",
-            "contents": {
-                "water_temp_suit_dry_sm.tif": {
-                    "about": "",
-                    "bands": {1: {
-                        "type": "number",
-                        "units": u.m**2,
-                    }}},
-                },
-            },
-        'intermediate': {
-            'type': 'directory',
-            'contents': {
-                '_taskgraph_working_dir': spec_utils.TASKGRAPH_DIR,
-            },
-        }
-    }
-}
+            data_type=float,
+            units=u.millimeter
+        ),
+        spec.VectorOutput(
+            id="aggregated_results_swy.shp",
+            about=gettext("Table of biophysical values for each watershed"),
+            geometry_types={"MULTIPOLYGON", "POLYGON"},
+            fields=[
+                spec.NumberOutput(
+                    id="qb",
+                    about=gettext("Mean local recharge value within the watershed"),
+                    units=u.millimeter
+                ),
+                spec.NumberOutput(
+                    id="vri_sum",
+                    about=gettext(
+                        "Total recharge contribution, (positive or negative) within the"
+                        " watershed."
+                    ),
+                    units=u.millimeter
+                )
+            ]
+        ),
+        spec.DirectoryOutput(
+            id="intermediate",
+            about=None,
+            contents=[
+                spec.SingleBandRasterOutput(
+                    id="aet.tif",
+                    about=gettext("Map of actual evapotranspiration"),
+                    data_type=float,
+                    units=u.millimeter
+                ),
+            ]
+        ),
+        spec.TASKGRAPH_DIR
+    ]
+)
 
 
 _OUTPUT_BASE_FILES = {
@@ -899,7 +867,7 @@ def execute(args):
             }
 
     # Get the extents and center of the AOI for notebook companion
-    aoi_info = pygeoprocessing.get_vector_info(args['aoi_vector_path'])
+    aoi_info = pygeoprocessing.get_vector_info(args['aoi_path'])
     # WGS84 WKT
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
@@ -939,7 +907,7 @@ def execute(args):
         pygeoprocessing.align_and_resize_raster_stack,
         kwargs={
             'base_raster_path_list': raster_input_list,
-            'base_vector_path_list': [args['aoi_vector_path']],
+            'base_vector_path_list': [args['aoi_path']],
             'target_raster_path_list': aligned_input_list,
             'resample_method_list': ['near']*len(raster_input_list),
             'target_pixel_size': squared_default_pixel_size,
@@ -1271,7 +1239,7 @@ def execute(args):
         pygeoprocessing.mask_raster,
         kwargs={
             'base_raster_path_band': (convolved_hab_risk_path, 1),
-            'mask_vector_path': args['aoi_vector_path'],
+            'mask_vector_path': args['aoi_path'],
             'target_mask_raster_path': masked_convolved_path,
         },
         target_path_list=[masked_convolved_path],
@@ -1360,7 +1328,7 @@ def execute(args):
     aoi_geojson_task = graph.add_task(
         func=pygeoprocessing.reproject_vector,
         kwargs={
-            'base_vector_path': args['aoi_vector_path'],
+            'base_vector_path': args['aoi_path'],
             'target_projection_wkt': target_wkt,
             'target_path': aoi_geojson_path,
             'driver_name': 'GeoJSON',
@@ -2426,4 +2394,4 @@ def _convolve_and_set_lower_bound(
 
 @validation.invest_validator
 def validate(args, limit_to=None):
-    return validation.validate(args, MODEL_SPEC['args'])
+    return validation.validate(args, MODEL_SPEC)
