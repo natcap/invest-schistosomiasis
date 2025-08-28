@@ -2,8 +2,11 @@
 requires = ["setuptools>=64", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.setuptools.package-data]
-natcap = ["notebooks/*.ipynb"]
+notebooks = ["*.ipynb"]
 
 [project]
 name = "invest-schistosomiasis"
