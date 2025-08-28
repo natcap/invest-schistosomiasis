@@ -25,7 +25,6 @@ from osgeo_utils import gdal2tiles
 import matplotlib.pyplot as plt
 
 from natcap.invest import spec
-from natcap.invest import gettext
 from natcap.invest import utils
 from natcap.invest import validation
 from natcap.invest.unit_registry import u
@@ -101,62 +100,62 @@ CUSTOM_SPEC_FUNC_TYPES = spec.OptionStringInput(
 
 SPEC_FUNC_COLS = {
     'linear': {
-        "xa": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "ya": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "xz": { "type": "number", "about": gettext(
-                "Second points x coordinate that defines the line.")},
-        "yz": { "type": "number", "about": gettext(
-                "Second points y coordinate that defines the line.")},
+        "xa": {"type": "number", "about": 
+                "First points x coordinate that defines the line."},
+        "ya": { "type": "number", "about": 
+                "First points y coordinate that defines the line."},
+        "xz": { "type": "number", "about": 
+                "Second points x coordinate that defines the line."},
+        "yz": { "type": "number", "about": 
+                "Second points y coordinate that defines the line."},
     },
     'trapezoid': {
-        "xa": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "ya": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "xb": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "yb": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "xc": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "yc": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "xz": { "type": "number", "about": gettext(
-                "Second points x coordinate that defines the line.")},
-        "yz": { "type": "number", "about": gettext(
-                "Second points y coordinate that defines the line.")},
+        "xa": {"type": "number", "about": 
+                "First points x coordinate that defines the line."},
+        "ya": { "type": "number", "about": 
+                "First points y coordinate that defines the line."},
+        "xb": {"type": "number", "about": 
+                "First points x coordinate that defines the line."},
+        "yb": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
+        "xc": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "yc": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
+        "xz": { "type": "number", "about":
+                "Second points x coordinate that defines the line."},
+        "yz": { "type": "number", "about":
+                "Second points y coordinate that defines the line."},
     },
     'gaussian': {
-        "mean": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "std": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "lb": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "ub": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
+        "mean": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "std": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
+        "lb": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "ub": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
     },
     'scurve': {
-        "yin": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "yfin": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "xmed": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "inv_slope": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
+        "yin": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "yfin": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
+        "xmed": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "inv_slope": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
     },
     'exponential': {
-        "yin": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "xmed": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
-        "decay_factor": {"type": "number", "about": gettext(
-                "First points x coordinate that defines the line.")},
-        "max_dist": { "type": "number", "about": gettext(
-                "First points y coordinate that defines the line.")},
+        "yin": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "xmed": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
+        "decay_factor": {"type": "number", "about":
+                "First points x coordinate that defines the line."},
+        "max_dist": { "type": "number", "about":
+                "First points y coordinate that defines the line."},
     }
 }
 
@@ -589,7 +588,7 @@ MODEL_SPEC = spec.ModelSpec(
     outputs=[
         spec.SingleBandRasterOutput(
             id="B.tif",
-            about=gettext(
+            about=(
                 "Map of baseflow values, the contribution of a pixel to slow release flow"
                 " (which is not evapotranspired before it reaches the stream)."
             ),
@@ -598,17 +597,17 @@ MODEL_SPEC = spec.ModelSpec(
         ),
         spec.VectorOutput(
             id="aggregated_results_swy.shp",
-            about=gettext("Table of biophysical values for each watershed"),
+            about="Table of biophysical values for each watershed",
             geometry_types={"MULTIPOLYGON", "POLYGON"},
             fields=[
                 spec.NumberOutput(
                     id="qb",
-                    about=gettext("Mean local recharge value within the watershed"),
+                    about="Mean local recharge value within the watershed",
                     units=u.millimeter
                 ),
                 spec.NumberOutput(
                     id="vri_sum",
-                    about=gettext(
+                    about=(
                         "Total recharge contribution, (positive or negative) within the"
                         " watershed."
                     ),
@@ -622,7 +621,7 @@ MODEL_SPEC = spec.ModelSpec(
             contents=[
                 spec.SingleBandRasterOutput(
                     id="aet.tif",
-                    about=gettext("Map of actual evapotranspiration"),
+                    about="Map of actual evapotranspiration",
                     data_type=float,
                     units=u.millimeter
                 ),
@@ -759,7 +758,8 @@ def execute(args):
     DEFAULT_FUNC_TYPES = {
         'temperature': _water_temp_suit,
         'ndvi': _ndvi,
-        'population': _rural_population_density,
+        #'population': _rural_population_density,
+        'population': _population_curve_people_per_sqkm,
         'urbanization': _urbanization,
         'water_velocity': _water_velocity,
         #'water_proximity': _water_proximity,
@@ -1842,6 +1842,51 @@ def _rural_population_density(population_path, target_raster_path):
         [(population_path, 1)], op, target_raster_path, gdal.GDT_Float32,
         FLOAT32_NODATA)
 
+def _population_curve_people_per_sqkm(pop_density_path, target_raster_path):
+    """Risk based on population per square km.
+
+    Risk function is defined as:
+        - 0 if people per sq km < 2
+        - linear if people per sq km >=2 and <=2000
+        - sigmoidal decreasing to 0 if people per sq km >2000 to 200,000
+
+    Args:
+        pop_density_path (string): path to population density in people per sq km.
+        target_raster_path (string): output path for population risk output
+
+    """
+    population_info = pygeoprocessing.get_raster_info(pop_density_path)
+    population_nodata = population_info['nodata'][0]
+    
+    slope = (1 - 0) / (2000 - 2)
+    intercept = 0 - (slope * 2)
+
+    def op(pop_density_array):
+        output = numpy.full(
+            pop_density_array.shape, BYTE_NODATA, dtype=numpy.float32)
+
+        valid_pixels = (~pygeoprocessing.array_equals_nodata(pop_density_array, population_nodata))
+
+        less_than_two_mask = (pop_density_array < 2 & valid_pixels)
+        output[less_than_two_mask] = 0
+
+        linear_mask = (
+            (pop_density_array >= 2 & pop_density_array <= 2000) & valid_pixels)
+        output[linear_mask] = (slope * pop_density_array[linear_mask]) + intercept
+
+        sigmoidal_mask = (pop_density_array > 2000 & valid_pixels)
+        
+        # 100100 taken as the midway s-curve "break"
+        # 20000 taken as a good value that a nice gradual s-curve
+        output[sigmoidal_mask] = (
+            1 + (0 - 1) / (1 + numpy.exp(
+                -1 * (pop_density_array[sigmoidal_mask] - 100100) / 20000)))
+
+        return output
+
+    pygeoprocessing.raster_calculator(
+        [(pop_density_path, 1)], op, target_raster_path, gdal.GDT_Float32,
+        BYTE_NODATA)
 
 def _water_velocity(slope_path, target_raster_path):
     """Slope suitability. """
@@ -2297,15 +2342,45 @@ def _convert_to_from_density(source_raster_path, target_raster_path,
         [(source_raster_path, 1), pixel_area_in_m2_by_latitude],
         _convert, target_raster_path, gdal.GDT_Float32, FLOAT32_NODATA)
 
-def _pop_count_to_density(pop_count_path, target_path):
-    """Population count to population density in hectares."""
+def _pop_count_to_hectare(pop_count_path, target_path):
+    """Population count to population density in hectares.
+
+    Args:
+        pop_count_path (str): path to population count raster
+        target_path (str): path to save density raster
+
+    Returns:
+        Nothing.
+    """
     population_raster_info = pygeoprocessing.get_raster_info(pop_count_path)
     pop_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
 
     # 10,000 square meters equals 1 hectares.
     kwargs={
-        'op': lambda x: (x / pop_pixel_area) * 10000,  # convert count per pixel to meters sq to hectares
-        #'op': lambda x: (x / pop_pixel_area) / 10000,  # convert count per pixel to meters sq to hectares
+        'op': lambda x: (x / pop_pixel_area) * 10000,  
+        'rasters': [pop_count_path],
+        'target_path': target_path,
+        'target_nodata': -1,
+    }
+
+    pygeoprocessing.raster_map(**kwargs)
+
+def _pop_count_to_square_km(pop_count_path, target_path):
+    """Population count to population density in square km.
+
+    Args:
+        pop_count_path (str): path to population count raster
+        target_path (str): path to save density raster
+
+    Returns:
+        Nothing.
+    """
+    population_raster_info = pygeoprocessing.get_raster_info(pop_count_path)
+    pop_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
+
+    # 1,000,000 square meters equals 1 square km.
+    kwargs={
+        'op': lambda x: (x / pop_pixel_area) * 1000000,  
         'rasters': [pop_count_path],
         'target_path': target_path,
         'target_nodata': -1,
