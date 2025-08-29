@@ -652,6 +652,7 @@ _OUTPUT_BASE_FILES = {
     'custom_suit_two': 'custom_suit_two.tif',
     'custom_suit_three': 'custom_suit_three.tif',
     'normalized_convolved_risk': 'normalized_convolved_risk.tif',
+    'population_suit_sqkm': 'population_suit_sqkm.tif',
 }
 
 _INTERMEDIATE_BASE_FILES = {
@@ -1010,55 +1011,57 @@ def execute(args):
 #    suitability_tasks.append(water_proximity_task)
     #outputs_to_tile.append((file_registry[f'water_proximity_suit'], default_color_path))
 
-    ### Combined rural population and urbanization
-    # Population count to density in hectares
-    pop_hectare_task = graph.add_task(
-        func=_pop_count_to_density,
+    ### Population suitability risk
+    # Population count to density in square km
+    population_suit_sqkm_task = graph.add_task(
+        func=_population_count_to_square_km,
         kwargs={
-            'pop_count_path': file_registry['aligned_pop_count'],
-            'target_path': file_registry['population_hectares'],
+            'population_count_path': file_registry['aligned_pop_count'],
+            'target_path': file_registry['population_suit_sqkm'],
         },
-        target_path_list=[file_registry['population_hectares']],
+        target_path_list=[file_registry['population_suit_sqkm']],
         dependent_task_list=[population_align_task],
-        task_name=f'Population count to density in hectares.')
+        task_name=f'Population count to density in sqkm.')
+    #suitability_tasks.append(population_suit_sqkm_task)
+    outputs_to_tile.append((file_registry['population_suit_sqkm'], default_color_path))
 
-    rural_pop_task = graph.add_task(
-        suit_func_to_use['population']['func_name'],
-        args=(
-            file_registry['population_hectares'],
-            file_registry['rural_pop_suit']),
-        kwargs=suit_func_to_use['population']['func_params'],
-        dependent_task_list=[pop_hectare_task],
-        target_path_list=[file_registry['rural_pop_suit']],
-        task_name=f'Rural Population Suit')
-    suitability_tasks.append(rural_pop_task)
-    #outputs_to_tile.append((file_registry[f'rural_pop_suit'], default_color_path))
-    
-    urbanization_task = graph.add_task(
-        suit_func_to_use['urbanization']['func_name'],
-        args=(
-            file_registry['population_hectares'],
-            file_registry['urbanization_suit']),
-        kwargs=suit_func_to_use['urbanization']['func_params'],
-        dependent_task_list=[pop_hectare_task],
-        target_path_list=[file_registry['urbanization_suit']],
-        task_name=f'Urbanization Suit')
-    suitability_tasks.append(urbanization_task)
-    #outputs_to_tile.append((file_registry[f'urbanization_suit'], default_color_path))
-    
-    rural_urbanization_task = graph.add_task(
-        _rural_urbanization_combined,
-        args=(
-            file_registry['population_hectares'],
-            file_registry['rural_pop_suit'],
-            file_registry['urbanization_suit'],
-            file_registry['rural_urbanization_suit'],
-            ),
-        dependent_task_list=[rural_pop_task, urbanization_task],
-        target_path_list=[file_registry['rural_urbanization_suit']],
-        task_name=f'Rural Urbanization Suit')
-    #suitability_tasks.append(rural_urbanization_task)
-    outputs_to_tile.append((file_registry[f'rural_urbanization_suit'], default_color_path))
+#    rural_pop_task = graph.add_task(
+#        suit_func_to_use['population']['func_name'],
+#        args=(
+#            file_registry['population_hectares'],
+#            file_registry['rural_pop_suit']),
+#        kwargs=suit_func_to_use['population']['func_params'],
+#        dependent_task_list=[pop_hectare_task],
+#        target_path_list=[file_registry['rural_pop_suit']],
+#        task_name=f'Rural Population Suit')
+#    suitability_tasks.append(rural_pop_task)
+#    #outputs_to_tile.append((file_registry[f'rural_pop_suit'], default_color_path))
+#    
+#    urbanization_task = graph.add_task(
+#        suit_func_to_use['urbanization']['func_name'],
+#        args=(
+#            file_registry['population_hectares'],
+#            file_registry['urbanization_suit']),
+#        kwargs=suit_func_to_use['urbanization']['func_params'],
+#        dependent_task_list=[pop_hectare_task],
+#        target_path_list=[file_registry['urbanization_suit']],
+#        task_name=f'Urbanization Suit')
+#    suitability_tasks.append(urbanization_task)
+#    #outputs_to_tile.append((file_registry[f'urbanization_suit'], default_color_path))
+#    
+#    rural_urbanization_task = graph.add_task(
+#        _rural_urbanization_combined,
+#        args=(
+#            file_registry['population_hectares'],
+#            file_registry['rural_pop_suit'],
+#            file_registry['urbanization_suit'],
+#            file_registry['rural_urbanization_suit'],
+#            ),
+#        dependent_task_list=[rural_pop_task, urbanization_task],
+#        target_path_list=[file_registry['rural_urbanization_suit']],
+#        task_name=f'Rural Urbanization Suit')
+#    #suitability_tasks.append(rural_urbanization_task)
+#    outputs_to_tile.append((file_registry[f'rural_urbanization_suit'], default_color_path))
 
     # Temperature and ndvi have different input drivers for wet and dry seasons.
     for season in ["dry", "wet"]:
@@ -1279,19 +1282,19 @@ def execute(args):
     base_risk_path_list = [masked_convolved_path, file_registry['normalized_convolved_risk']] 
     base_task_list = [mask_aoi_task, normalize_task] 
     for calc_type, base_risk_path, base_task in zip(['abs', 'rel'], base_risk_path_list, base_task_list):
-        ### Weight convolved risk by urbanization
+        ### Weight convolved risk by population density
         risk_to_pop_path = os.path.join(
             output_dir, f'risk_to_pop_{calc_type}{suffix}.tif')
         risk_to_pop_task = graph.add_task(
             func=pygeoprocessing.raster_map,
             kwargs={
                 'op': _multiply_op,
-                'rasters': [file_registry['rural_urbanization_suit'], base_risk_path],
+                'rasters': [file_registry['population_suit_sqkm'], base_risk_path],
                 'target_path': risk_to_pop_path,
                 #'target_nodata': FLOAT32_NODATA,
                 },
             target_path_list=[risk_to_pop_path],
-            dependent_task_list=[base_task, urbanization_task],
+            dependent_task_list=[base_task, population_suit_sqkm_task],
             task_name=f'risk to population {calc_type}')
         outputs_to_tile.append((risk_to_pop_path, pop_color_path))
         
@@ -1358,7 +1361,7 @@ def execute(args):
 
     suitability_keys = [
         ('ndvi', args['calc_ndvi'], args['ndvi_dry_path']),
-        ('population', True, file_registry['population_hectares']),
+        ('population', True, file_registry['population_suit_sqkm']),
         ('water_velocity', args['calc_water_velocity'], file_registry[f'slope']),
         ('water_depth', args['calc_water_depth'], file_registry[f'distance_from_shore']),
         ('custom_one', args['calc_custom_one'], args['custom_one_path']),
@@ -1867,14 +1870,14 @@ def _population_curve_people_per_sqkm(pop_density_path, target_raster_path):
 
         valid_pixels = (~pygeoprocessing.array_equals_nodata(pop_density_array, population_nodata))
 
-        less_than_two_mask = (pop_density_array < 2 & valid_pixels)
+        less_than_two_mask = (pop_density_array < 2) & (valid_pixels)
         output[less_than_two_mask] = 0
 
         linear_mask = (
-            (pop_density_array >= 2 & pop_density_array <= 2000) & valid_pixels)
+            (pop_density_array >= 2) & (pop_density_array <= 2000) & valid_pixels)
         output[linear_mask] = (slope * pop_density_array[linear_mask]) + intercept
 
-        sigmoidal_mask = (pop_density_array > 2000 & valid_pixels)
+        sigmoidal_mask = (pop_density_array > 2000) & (valid_pixels)
         
         # 100100 taken as the midway s-curve "break"
         # 20000 taken as a good value that a nice gradual s-curve
@@ -2342,59 +2345,59 @@ def _convert_to_from_density(source_raster_path, target_raster_path,
         [(source_raster_path, 1), pixel_area_in_m2_by_latitude],
         _convert, target_raster_path, gdal.GDT_Float32, FLOAT32_NODATA)
 
-def _pop_count_to_hectare(pop_count_path, target_path):
+def _population_count_to_hectare(population_count_path, target_path):
     """Population count to population density in hectares.
 
     Args:
-        pop_count_path (str): path to population count raster
+        population_count_path (str): path to population count raster
         target_path (str): path to save density raster
 
     Returns:
         Nothing.
     """
-    population_raster_info = pygeoprocessing.get_raster_info(pop_count_path)
-    pop_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
+    population_raster_info = pygeoprocessing.get_raster_info(population_count_path)
+    population_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
 
     # 10,000 square meters equals 1 hectares.
     kwargs={
-        'op': lambda x: (x / pop_pixel_area) * 10000,  
-        'rasters': [pop_count_path],
+        'op': lambda x: (x / population_pixel_area) * 10000,  
+        'rasters': [population_count_path],
         'target_path': target_path,
         'target_nodata': -1,
     }
 
     pygeoprocessing.raster_map(**kwargs)
 
-def _pop_count_to_square_km(pop_count_path, target_path):
+def _population_count_to_square_km(population_count_path, target_path):
     """Population count to population density in square km.
 
     Args:
-        pop_count_path (str): path to population count raster
+        population_count_path (str): path to population count raster
         target_path (str): path to save density raster
 
     Returns:
         Nothing.
     """
-    population_raster_info = pygeoprocessing.get_raster_info(pop_count_path)
-    pop_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
+    population_raster_info = pygeoprocessing.get_raster_info(population_count_path)
+    population_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
 
     # 1,000,000 square meters equals 1 square km.
     kwargs={
-        'op': lambda x: (x / pop_pixel_area) * 1000000,  
-        'rasters': [pop_count_path],
+        'op': lambda x: (x / population_pixel_area) * 1000000,  
+        'rasters': [population_count_path],
         'target_path': target_path,
         'target_nodata': -1,
     }
 
     pygeoprocessing.raster_map(**kwargs)
 
-def _pop_density_to_hectares(pop_density_path, target_path):
+def _population_density_to_hectares(population_density_path, target_path):
     """Population density in square km to population density in hectares."""
-    population_raster_info = pygeoprocessing.get_raster_info(pop_density_path)
+    population_raster_info = pygeoprocessing.get_raster_info(population_density_path)
 
     kwargs={
         'op': lambda x: x/100,
-        'rasters': [pop_density_path],
+        'rasters': [population_density_path],
         'target_path': target_path,
         'target_nodata': -1,
     }
