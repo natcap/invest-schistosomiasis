@@ -1151,12 +1151,22 @@ def execute(args):
         # Using water presence mask out non water pixels, since risk
         # is tied to water here.
         masked_water_depth_suit_path = file_registry['water_depth_suit']
+#        mask_water_depth_suit_task = graph.add_task(
+#            pygeoprocessing.raster_map,
+#            kwargs={
+#                'op': _mask_non_water_values_op,
+#                'rasters': [
+#                    water_depth_suit_path, file_registry['aligned_water_presence']],
+#                'target_path': masked_water_depth_suit_path,
+#            },
+#            dependent_task_list=[water_depth_suit_task],
+#            target_path_list=[masked_water_depth_suit_path],
+#            task_name=f'Mask Water Depth Suit')
         mask_water_depth_suit_task = graph.add_task(
-            pygeoprocessing.raster_map,
+            _mask_non_water_values_func,
             kwargs={
-                'op': _mask_non_water_values_op,
-                'rasters': [
-                    water_depth_suit_path, file_registry['aligned_water_presence']],
+                'input_path': water_depth_suit_path,
+                'mask_path': file_registry['aligned_water_presence'],
                 'target_path': masked_water_depth_suit_path,
             },
             dependent_task_list=[water_depth_suit_task],
@@ -1537,6 +1547,32 @@ def _water_mask_op(input_path, mask_path, target_path):
 
 def _mask_non_water_values_op(input_array, water_presence_array):
     return input_array * water_presence_array
+
+def _mask_non_water_values_func(input_path, mask_path, target_path):
+    """
+    """
+    LOGGER.debug("MASK_NON_WATER_VALUES_FUNC")
+    input_info = pygeoprocessing.get_raster_info(input_path)
+    input_nodata = input_info['nodata'][0]
+    mask_info = pygeoprocessing.get_raster_info(mask_path)
+    mask_nodata = mask_info['nodata'][0]
+    LOGGER.debug(f"input_nodata: {input_nodata}")
+    LOGGER.debug(f"mask_nodata: {mask_nodata}")
+
+    def _mask_op(input_array, mask_array):
+        output = numpy.full(input_array.shape, input_nodata)
+        valid_mask = (
+                ~pygeoprocessing.array_equals_nodata(input_array, input_nodata) &
+                ~pygeoprocessing.array_equals_nodata(mask_array, mask_nodata))
+
+        water_mask = (mask_array == 1) & valid_mask
+        output[water_mask] = input_array[water_mask]
+
+        return output
+    
+    pygeoprocessing.raster_calculator(
+        [(input_path, 1), (mask_path, 1)],
+        _mask_op, target_path, gdal.GDT_Float32, input_nodata)
 
 def _weighted_mean(rasters, weight_values, target_path, target_nodata):
     """Weighted arithmetic mean wrapper."""
