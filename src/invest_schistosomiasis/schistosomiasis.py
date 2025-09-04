@@ -682,6 +682,7 @@ _INTERMEDIATE_BASE_FILES = {
     'water_velocity_suit_plot': 'water_vel_suit_plot.png',
     'water_proximity_suit_plot': 'water_proximity_suit_plot.png',
     'water_temp_suit_dry_plot': 'water_temp_suit_dry_plot.png',
+    'unmasked_water_depth_suit': 'unmasked_water_depth_suit.tif',
     'water_depth_suit_plot': 'water_depth_suit_plot.png',
     'custom_suit_one_plot': 'custom_suit_one_plot.png',
     'custom_suit_two_plot': 'custom_suit_two_plot.png',
@@ -1134,8 +1135,8 @@ def execute(args):
             target_path_list=[file_registry['distance_from_shore']],
             dependent_task_list=[inverse_water_mask_task],
             task_name='inverse distance edt')
-            
-        water_depth_suit_path = file_registry['water_depth_suit']
+
+        water_depth_suit_path = file_registry['unmasked_water_depth_suit']
         water_depth_suit_task = graph.add_task(
             suit_func_to_use['water_depth']['func_name'],
             args=(
@@ -1147,10 +1148,25 @@ def execute(args):
             target_path_list=[water_depth_suit_path],
             task_name=f'Water Depth Suit')
 
-        suitability_tasks.append(water_depth_suit_task)
-        habitat_suit_risk_paths.append(water_depth_suit_path)
+        # Using water presence mask out non water pixels, since risk
+        # is tied to water here.
+        masked_water_depth_suit_path = file_registry['water_depth_suit']
+        mask_water_depth_suit_task = graph.add_task(
+            pygeoprocessing.raster_map,
+            kwargs={
+                'op': _mask_non_water_values_op,
+                'rasters': [
+                    water_depth_suit_path, file_registry['aligned_water_presence']],
+                'target_path': masked_water_depth_suit_path,
+            },
+            dependent_task_list=[water_depth_suit_task],
+            target_path_list=[masked_water_depth_suit_path],
+            task_name=f'Mask Water Depth Suit')
+
+        suitability_tasks.append(mask_water_depth_suit_task)
+        habitat_suit_risk_paths.append(masked_water_depth_suit_path)
         habitat_suit_risk_weights.append(float(args['water_depth_weight']))
-        outputs_to_tile.append((water_depth_suit_path, default_color_path))
+        outputs_to_tile.append((masked_water_depth_suit_path, default_color_path))
 
     ### Custom functions provided by user
     for custom_index in ['one', 'two', 'three']:
@@ -1487,7 +1503,8 @@ def _inverse_water_mask_op(input_path, target_path):
         water_mask = input_array == 1
 
         output[water_mask] = 0
-        output[nodata_mask] = 1
+        #output[nodata_mask] = 1
+        output[~water_mask] = 1
 
         return output
     
@@ -1518,6 +1535,8 @@ def _water_mask_op(input_path, mask_path, target_path):
         [(input_path, 1), (mask_path, 1)],
         _mask_op, target_path, gdal.GDT_Float32, input_nodata)
 
+def _mask_non_water_values_op(input_array, water_presence_array):
+    return input_array * water_presence_array
 
 def _weighted_mean(rasters, weight_values, target_path, target_nodata):
     """Weighted arithmetic mean wrapper."""
