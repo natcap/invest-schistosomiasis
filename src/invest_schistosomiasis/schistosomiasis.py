@@ -78,12 +78,12 @@ def get_spec_func_types(input_id, required=True, allowed=True):
         required=required,
         allowed=allowed,
         options=[
-            spec.Option(key="default", description="Default used in paper."),
-            spec.Option(key="linear", description="Linear"),
-            spec.Option(key="exponential", description="exponential"),
-            spec.Option(key="scurve", description="scurve"),
-            spec.Option(key="trapezoid", description="trapezoid"),
-            spec.Option(key="gaussian", description="gaussian"),
+            spec.Option(key="default", display_name="Default used in paper."),
+            spec.Option(key="linear", display_name="Linear"),
+            spec.Option(key="exponential", display_name="exponential"),
+            spec.Option(key="scurve", display_name="scurve"),
+            spec.Option(key="trapezoid", display_name="trapezoid"),
+            spec.Option(key="gaussian", display_name="gaussian"),
         ])
 
 CUSTOM_SPEC_FUNC_TYPES = spec.OptionStringInput(
@@ -91,11 +91,11 @@ CUSTOM_SPEC_FUNC_TYPES = spec.OptionStringInput(
         name="Suitability function type",
         about="The function type to apply to the suitability factor.",
         options=[
-            spec.Option(key="linear", description="Linear"),
-            spec.Option(key="exponential", description="exponential"),
-            spec.Option(key="scurve", description="scurve"),
-            spec.Option(key="trapezoid", description="trapezoid"),
-            spec.Option(key="gaussian", description="gaussian"),
+            spec.Option(key="linear", display_name="Linear"),
+            spec.Option(key="exponential", display_name="exponential"),
+            spec.Option(key="scurve", display_name="scurve"),
+            spec.Option(key="trapezoid", display_name="trapezoid"),
+            spec.Option(key="gaussian", display_name="gaussian"),
         ])
 
 SPEC_FUNC_COLS = {
@@ -162,13 +162,24 @@ SPEC_FUNC_COLS = {
 FUNCS = ['linear', 'trapezoid', 'gaussian', 'scurve', 'exponential']
 
 FUNC_PARAMS = {
-    'population': [
+    'rural_population': [
         spec.NumberInput(
-            id=f'population_{fn}_param_{key}',
+            id=f'rural_population_{fn}_param_{key}',
             name=f'{key}',
             about=desc['about'],
-            required=f"population_func_type == '{fn}'",
-            allowed=f"population_func_type == '{fn}'",
+            required=f"default_population_suit == False and rural_population_func_type == '{fn}'",
+            allowed=f"default_population_suit == False and rural_population_func_type == '{fn}'",
+            units=None
+        )
+        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+    ],
+    'urbanization_population': [
+        spec.NumberInput(
+            id=f'urbanization_population_{fn}_param_{key}',
+            name=f'{key}',
+            about=desc['about'],
+            required=f"default_population_suit == False and urbanization_population_func_type == '{fn}'",
+            allowed=f"default_population_suit == False and urbanization_population_func_type == '{fn}'",
             units=None
         )
         for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
@@ -257,7 +268,7 @@ def temp_spec_func_types(default_type):
     default_options = [
         spec.Option(
             key=f"{key}",
-            description=f"{name}"
+            display_name=f"{name}"
         ) for key, name in default_param_list]
 
     return spec.OptionStringInput(
@@ -266,11 +277,11 @@ def temp_spec_func_types(default_type):
             about="The function type to apply to the suitability factor.",
             options=[
                 *default_options,
-                spec.Option(key="linear", description="Linear"),
-                spec.Option(key="exponential", description="exponential"),
-                spec.Option(key="scurve", description="scurve"),
-                spec.Option(key="trapezoid", description="trapezoid"),
-                spec.Option(key="gaussian", description="gaussian"),
+                spec.Option(key="linear", display_name="Linear"),
+                spec.Option(key="exponential", display_name="exponential"),
+                spec.Option(key="scurve", display_name="scurve"),
+                spec.Option(key="trapezoid", display_name="trapezoid"),
+                spec.Option(key="gaussian", display_name="gaussian"),
             ])
 
 
@@ -285,8 +296,12 @@ MODEL_SPEC = spec.ModelSpec(
         ['aoi_path'],
         ['decay_distance'],
         ["water_presence_path"],
-        ["population_count_path", "population_func_type",
-         {"Population parameters": [key.id for key in FUNC_PARAMS['population']]}],
+        ["population_count_path", "default_population_suit",
+         "rural_population_max", "urbanization_population_max",
+         "rural_population_func_type",
+         {"Rural parameters": [key.id for key in FUNC_PARAMS['rural_population']]},
+         "urbanization_population_func_type",
+         {"Urbanization parameters": [key.id for key in FUNC_PARAMS['urbanization_population']]}],
 #            ["calc_water_proximity", "water_proximity_func_type",
 #             {"Water proximity parameters": FUNC_PARAMS['water_proximity']}],
         ["calc_water_depth", "water_depth_weight"],
@@ -323,7 +338,6 @@ MODEL_SPEC = spec.ModelSpec(
             units=u.meter,
         ),
         spec.AOI,
-        *FUNC_PARAMS['population'],
         spec.SingleBandRasterInput(
             id='population_count_path',
             name='population raster',
@@ -331,7 +345,58 @@ MODEL_SPEC = spec.ModelSpec(
             data_type=float,
             units=u.meter,
         ),
-        get_spec_func_types("population_func_type"),
+        spec.BooleanInput(
+            id="default_population_suit",
+            name="Use default poppulation suitability.",
+            about=("Linear increase in risk to rural max and an s-curve"
+                   "decrease in risk from rural max to urbanization max."),
+            required=False,
+        ),
+        spec.NumberInput(
+            id="rural_population_max",
+            name="Rural population max",
+            about="The rural population at which risk is highest.",
+            required="default_population_suit",
+            allowed="default_population_suit",
+            units=None,
+        ),
+        spec.NumberInput(
+            id="urbanization_population_max",
+            name="Urbanization population max",
+            about="The urbanization population at which risk is 0.",
+            required="default_population_suit",
+            allowed="default_population_suit",
+            units=None,
+        ),
+        *FUNC_PARAMS['rural_population'],
+        spec.OptionStringInput(
+            id="rural_population_func_type",
+            name="Rural Suitability function type",
+            about="The function type to apply to the suitability factor.",
+            required="default_population_suit == False",
+            allowed="default_population_suit == False",
+            options=[
+                spec.Option(key="linear", display_name="Linear"),
+                spec.Option(key="exponential", display_name="exponential"),
+                spec.Option(key="scurve", display_name="scurve"),
+                spec.Option(key="trapezoid", display_name="trapezoid"),
+                spec.Option(key="gaussian", display_name="gaussian"),
+            ]),
+        *FUNC_PARAMS['urbanization_population'],
+        spec.OptionStringInput(
+            id="urbanization_population_func_type",
+            name="Urbanization Suitability function type",
+            about="The function type to apply to the suitability factor.",
+            required="False",
+            allowed="default_population_suit == False",
+            options=[
+                spec.Option(key="None", display_name="[Select option]"),
+                spec.Option(key="linear", display_name="Linear"),
+                spec.Option(key="exponential", display_name="exponential"),
+                spec.Option(key="scurve", display_name="scurve"),
+                spec.Option(key="trapezoid", display_name="trapezoid"),
+                spec.Option(key="gaussian", display_name="gaussian"),
+            ]),
         spec.BooleanInput(
             id="calc_water_depth",
             name="calculate water depth",
