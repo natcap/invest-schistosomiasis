@@ -707,8 +707,6 @@ _OUTPUT_BASE_FILES = {
     'water_velocity_suit': 'water_velocity_suit.tif',
     'water_proximity_suit': 'water_proximity_suit.tif',
     'water_depth_suit': 'water_depth_suit.tif',
-    'rural_pop_suit': 'rural_pop_suit.tif',
-    'urbanization_suit': 'urbanization_suit.tif',
     'rural_urbanization_suit': 'rural_urbanization_suit.tif',
     #'water_stability_suit': 'water_stability_suit.tif',
     'habitat_stability_suit': 'habitat_stability_suit.tif',
@@ -749,6 +747,8 @@ _INTERMEDIATE_BASE_FILES = {
     'water_temp_suit_dry_plot': 'water_temp_suit_dry_plot.png',
     'unmasked_water_depth_suit': 'unmasked_water_depth_suit.tif',
     'water_depth_suit_plot': 'water_depth_suit_plot.png',
+    'rural_population_suit': 'rural_population_suit.tif',
+    'urbanization_population_suit': 'urbanization_population_suit.tif',
     'custom_suit_one_plot': 'custom_suit_one_plot.png',
     'custom_suit_two_plot': 'custom_suit_two_plot.png',
     'custom_suit_three_plot': 'custom_suit_three_plot.png',
@@ -826,8 +826,8 @@ def execute(args):
         'temperature': _water_temp_suit,
         'ndvi': _ndvi,
         #'population': _rural_population_density,
-        'population': _population_curve_people_per_sqkm,
-        'urbanization': _urbanization,
+        'default_population_suit': _population_curve_people_per_sqkm,
+        #'urbanization': _urbanization,
         'water_velocity': _water_velocity,
         #'water_proximity': _water_proximity,
         'water_depth': _water_depth_suit,
@@ -882,8 +882,11 @@ def execute(args):
     # something else.
     suitability_keys = [
         ('ndvi', args['calc_ndvi']),
-        ('population', True),
-        ('urbanization', True),
+        ('default_population_suit', args['default_population_suit']),
+        ('rural_population_suit', ~args['default_population_suit']),
+        ('urbanization_population_suit', (
+            ~args['default_population_suit'] &
+            args['urbanization_population_func_type'] != 'None')),
         ('water_velocity', args['calc_water_velocity']),
         ('water_depth', args['calc_water_depth']),
         ('custom_one', args['calc_custom_one']),
@@ -893,8 +896,8 @@ def execute(args):
         # Skip non selected suitability metrics
         if not calc_suit:
             continue
-        # Urbanization and water depth have static functions
-        if suit_key in ['urbanization', 'water_depth']:
+        # Default population suitability and water depth have static functions
+        if suit_key in ['default_population_suit', 'water_depth']:
             func_type = 'default'
         else:
             func_type = args[f'{suit_key}_func_type']
@@ -1095,32 +1098,32 @@ def execute(args):
 #        suit_func_to_use['population']['func_name'],
 #        args=(
 #            file_registry['population_hectares'],
-#            file_registry['rural_pop_suit']),
+#            file_registry['rural_population_suit']),
 #        kwargs=suit_func_to_use['population']['func_params'],
 #        dependent_task_list=[pop_hectare_task],
-#        target_path_list=[file_registry['rural_pop_suit']],
+#        target_path_list=[file_registry['rural_population_suit']],
 #        task_name=f'Rural Population Suit')
 #    suitability_tasks.append(rural_pop_task)
-#    #outputs_to_tile.append((file_registry[f'rural_pop_suit'], default_color_path))
+#    #outputs_to_tile.append((file_registry[f'rural_population_suit'], default_color_path))
 #    
 #    urbanization_task = graph.add_task(
 #        suit_func_to_use['urbanization']['func_name'],
 #        args=(
 #            file_registry['population_hectares'],
-#            file_registry['urbanization_suit']),
+#            file_registry['urbanization_population_suit']),
 #        kwargs=suit_func_to_use['urbanization']['func_params'],
 #        dependent_task_list=[pop_hectare_task],
-#        target_path_list=[file_registry['urbanization_suit']],
+#        target_path_list=[file_registry['urbanization_population_suit']],
 #        task_name=f'Urbanization Suit')
 #    suitability_tasks.append(urbanization_task)
-#    #outputs_to_tile.append((file_registry[f'urbanization_suit'], default_color_path))
+#    #outputs_to_tile.append((file_registry[f'urbanization_population_suit'], default_color_path))
 #    
 #    rural_urbanization_task = graph.add_task(
 #        _rural_urbanization_combined,
 #        args=(
 #            file_registry['population_hectares'],
-#            file_registry['rural_pop_suit'],
-#            file_registry['urbanization_suit'],
+#            file_registry['rural_population_suit'],
+#            file_registry['urbanization_population_suit'],
 #            file_registry['rural_urbanization_suit'],
 #            ),
 #        dependent_task_list=[rural_pop_task, urbanization_task],
