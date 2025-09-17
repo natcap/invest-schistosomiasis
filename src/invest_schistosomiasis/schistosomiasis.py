@@ -652,7 +652,8 @@ MODEL_SPEC = spec.ModelSpec(
     ],
     outputs=[
         spec.SingleBandRasterOutput(
-            id="B.tif",
+            id="B",
+            path="B.tif",
             about=(
                 "Map of baseflow values, the contribution of a pixel to slow release flow"
                 " (which is not evapotranspired before it reaches the stream)."
@@ -661,7 +662,8 @@ MODEL_SPEC = spec.ModelSpec(
             units=u.millimeter
         ),
         spec.VectorOutput(
-            id="aggregated_results_swy.shp",
+            id="aggregated_results_swy",
+            path="aggregated_results_swy.shp",
             about="Table of biophysical values for each watershed",
             geometry_types={"MULTIPOLYGON", "POLYGON"},
             fields=[
@@ -680,19 +682,7 @@ MODEL_SPEC = spec.ModelSpec(
                 )
             ]
         ),
-        spec.DirectoryOutput(
-            id="intermediate",
-            about=None,
-            contents=[
-                spec.SingleBandRasterOutput(
-                    id="aet.tif",
-                    about="Map of actual evapotranspiration",
-                    data_type=float,
-                    units=u.millimeter
-                ),
-            ]
-        ),
-        spec.TASKGRAPH_DIR
+        spec.TASKGRAPH_CACHE
     ]
 )
 
