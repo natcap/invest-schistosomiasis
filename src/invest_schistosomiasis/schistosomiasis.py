@@ -707,7 +707,7 @@ _OUTPUT_BASE_FILES = {
     'water_velocity_suit': 'water_velocity_suit.tif',
     'water_proximity_suit': 'water_proximity_suit.tif',
     'water_depth_suit': 'water_depth_suit.tif',
-    'rural_urbanization_suit': 'rural_urbanization_suit.tif',
+    'population_suitability': 'population_suitability.tif',
     #'water_stability_suit': 'water_stability_suit.tif',
     'habitat_stability_suit': 'habitat_stability_suit.tif',
     'habitat_suit_weighted_mean': 'habitat_suit_weighted_mean.tif',
@@ -883,10 +883,10 @@ def execute(args):
     suitability_keys = [
         ('ndvi', args['calc_ndvi']),
         ('default_population_suit', args['default_population_suit']),
-        ('rural_population_suit', ~args['default_population_suit']),
-        ('urbanization_population_suit', (
-            ~args['default_population_suit'] &
-            args['urbanization_population_func_type'] != 'None')),
+        ('rural_population', not args['default_population_suit']),
+        ('urbanization_population', (
+            not args['default_population_suit'] and 
+            (args['urbanization_population_func_type'] != 'None'))),
         ('water_velocity', args['calc_water_velocity']),
         ('water_depth', args['calc_water_depth']),
         ('custom_one', args['calc_custom_one']),
@@ -909,6 +909,11 @@ def execute(args):
             user_func = FUNC_TYPES[func_type]
         else:
             func_params = None
+            if suit_key == 'default_population_suit':
+                func_params = {
+                    'rural_population_max': float(args['rural_population_max']),
+                    'urbanization_population_max': float(args['urbanization_population_max'])
+                    }
             user_func = DEFAULT_FUNC_TYPES[suit_key]
 
         suit_func_to_use[suit_key] = {
@@ -1094,43 +1099,57 @@ def execute(args):
     #suitability_tasks.append(population_suit_sqkm_task)
     outputs_to_tile.append((file_registry['population_suit_sqkm'], default_color_path))
 
-#    rural_pop_task = graph.add_task(
-#        suit_func_to_use['population']['func_name'],
-#        args=(
-#            file_registry['population_hectares'],
-#            file_registry['rural_population_suit']),
-#        kwargs=suit_func_to_use['population']['func_params'],
-#        dependent_task_list=[pop_hectare_task],
-#        target_path_list=[file_registry['rural_population_suit']],
-#        task_name=f'Rural Population Suit')
-#    suitability_tasks.append(rural_pop_task)
-#    #outputs_to_tile.append((file_registry[f'rural_population_suit'], default_color_path))
-#    
-#    urbanization_task = graph.add_task(
-#        suit_func_to_use['urbanization']['func_name'],
-#        args=(
-#            file_registry['population_hectares'],
-#            file_registry['urbanization_population_suit']),
-#        kwargs=suit_func_to_use['urbanization']['func_params'],
-#        dependent_task_list=[pop_hectare_task],
-#        target_path_list=[file_registry['urbanization_population_suit']],
-#        task_name=f'Urbanization Suit')
-#    suitability_tasks.append(urbanization_task)
-#    #outputs_to_tile.append((file_registry[f'urbanization_population_suit'], default_color_path))
-#    
-#    rural_urbanization_task = graph.add_task(
-#        _rural_urbanization_combined,
-#        args=(
-#            file_registry['population_hectares'],
-#            file_registry['rural_population_suit'],
-#            file_registry['urbanization_population_suit'],
-#            file_registry['rural_urbanization_suit'],
-#            ),
-#        dependent_task_list=[rural_pop_task, urbanization_task],
-#        target_path_list=[file_registry['rural_urbanization_suit']],
-#        task_name=f'Rural Urbanization Suit')
-#    #suitability_tasks.append(rural_urbanization_task)
-#    outputs_to_tile.append((file_registry[f'rural_urbanization_suit'], default_color_path))
+    if args['default_population_suit']:
+        population_suitability_path = file_registry['population_suitability']
+        default_population_suit_task = graph.add_task(
+            _population_curve_people_per_sqkm,
+            kwargs={
+                'pop_density_path':file_registry['population_suit_sqkm'],
+                'target_raster_path':file_registry['population_suitability'],
+                'rural_population_max':float(args['rural_population_max']),
+                'urbanization_population_max':float(args['urbanization_population_max']),
+            },
+            dependent_task_list=[population_suit_sqkm_task],
+            target_path_list=[file_registry['population_suitability']],
+            task_name=f'Default population Suit')
+        outputs_to_tile.append((file_registry[f'population_suitability'], default_color_path))
+    else:
+        rural_pop_task = graph.add_task(
+            suit_func_to_use['rural_population']['func_name'],
+            args=(
+                file_registry['population_suit_sqkm'],
+                file_registry['rural_population_suit']),
+            kwargs=suit_func_to_use['rural_population']['func_params'],
+            dependent_task_list=[population_suit_sqkm_task],
+            target_path_list=[file_registry['rural_population_suit']],
+            task_name=f'Rural Population Suit')
+        
+        if args['urbanization_popualation_func_type'] != 'None':
+            urbanization_task = graph.add_task(
+                suit_func_to_use['urbanization_population']['func_name'],
+                args=(
+                    file_registry['population_suit_sqkm'],
+                    file_registry['urbanization_population_suit']),
+                kwargs=suit_func_to_use['urbanization_population']['func_params'],
+                dependent_task_list=[population_suit_sqkm_task],
+                target_path_list=[file_registry['urbanization_population_suit']],
+                task_name=f'Urbanization Population Suit')
+            
+            rural_urbanization_task = graph.add_task(
+                _rural_urbanization_combined,
+                args=(
+                    file_registry['rural_population_suit'],
+                    file_registry['urbanization_population_suit'],
+                    file_registry['population_suitability'],
+                ),
+                dependent_task_list=[rural_pop_task, urbanization_task],
+                target_path_list=[file_registry['population_suitability']],
+                task_name=f'Rural Urbanization Suit')
+            outputs_to_tile.append((file_registry[f'population_suitability'], default_color_path))
+        else:
+            population_suitability_path = file_registry['rural_population_suit']
+            outputs_to_tile.append((file_registry[f'rural_population_suit'], default_color_path))
+
 
     # Temperature and ndvi have different input drivers for wet and dry seasons.
     for season in ["dry", "wet"]:
@@ -1266,9 +1285,6 @@ def execute(args):
             outputs_to_tile.append((file_registry[target_key], default_color_path))
 
 
-    ### Population proximity to water
-
-
     ### Weighted arithmetic mean of water risks
     weighted_mean_task = graph.add_task(
         _weighted_mean,
@@ -1383,7 +1399,7 @@ def execute(args):
             func=pygeoprocessing.raster_map,
             kwargs={
                 'op': _multiply_op,
-                'rasters': [file_registry['population_suit_sqkm'], base_risk_path],
+                'rasters': [population_suitability_path, base_risk_path],
                 'target_path': risk_to_pop_path,
                 #'target_nodata': FLOAT32_NODATA,
                 },
@@ -1455,7 +1471,14 @@ def execute(args):
 
     suitability_keys = [
         ('ndvi', args['calc_ndvi'], args['ndvi_dry_path']),
-        ('population', True, file_registry['population_suit_sqkm']),
+        ('default_population_suit', args['default_population_suit'],
+         file_registry['population_suit_sqkm']),
+        ('rural_population', not args['default_population_suit'],
+         file_registry['rural_population_suit']),
+        ('urbanization_population', (
+            not args['default_population_suit'] and
+            (args['urbanization_population_func_type'] != 'None')),
+         file_registry['urbanization_population_suit']),
         ('water_velocity', args['calc_water_velocity'], file_registry[f'slope']),
         ('water_depth', args['calc_water_depth'], file_registry[f'distance_from_shore']),
         ('custom_one', args['calc_custom_one'], args['custom_one_path']),
@@ -1471,8 +1494,8 @@ def execute(args):
 
         user_func = suit_func_to_use[suit_key]['func_name']
         func_params = suit_func_to_use[suit_key]['func_params']
-        # Urbanization and water depth have static functions
-        if suit_key in ['urbanization', 'water_depth']:
+        # Default population and water depth have static functions
+        if suit_key in ['default_population_suit', 'water_depth']:
             func_type = 'default'
         else:
             func_type = args[f'{suit_key}_func_type']
@@ -1683,29 +1706,27 @@ def _normalize_raster(raster_path, target_path):
         target_path=target_path,
     )
 
-def _rural_urbanization_combined(pop_density_path, rural_path, urbanization_path, target_raster_path):
+def _rural_urbanization_combined(rural_path, urbanization_path, target_raster_path):
     """Combine the rural and urbanization functions."""
     rural_info = pygeoprocessing.get_raster_info(rural_path)
     rural_nodata = rural_info['nodata'][0]
     urbanization_info = pygeoprocessing.get_raster_info(urbanization_path)
     urbanization_nodata = urbanization_info['nodata'][0]
 
-    def _rural_urbanization_op(pop_density_array, rural_array, urbanization_array):
+    def _rural_urbanization_op(rural_array, urbanization_array):
         output = numpy.full(
             rural_array.shape, BYTE_NODATA, dtype=numpy.float32)
-        nodata_mask = (
-                pygeoprocessing.array_equals_nodata(rural_array, rural_nodata) |
-                pygeoprocessing.array_equals_nodata(urbanization_array, urbanization_nodata) )
+        valid_mask = (
+                ~pygeoprocessing.array_equals_nodata(rural_array, rural_nodata) &
+                ~pygeoprocessing.array_equals_nodata(urbanization_array, urbanization_nodata) )
 
-        use_rural_mask = pop_density_array <= 1
-        output[use_rural_mask] = rural_array[use_rural_mask]
-        output[~use_rural_mask] = urbanization_array[~use_rural_mask]
-        output[nodata_mask] = BYTE_NODATA
+        output[valid_mask] = rural_array[valid_mask]
+        output[valid_mask] = urbanization_array[valid_mask]
 
         return output
     
     pygeoprocessing.raster_calculator(
-        [(pop_density_path, 1), (rural_path, 1), (urbanization_path, 1)],
+        [(rural_path, 1), (urbanization_path, 1)],
         _rural_urbanization_op, target_raster_path, gdal.GDT_Float32, BYTE_NODATA)
 
 def _multiply_op(array_one, array_two): return numpy.multiply(array_one, array_two)
@@ -1968,7 +1989,9 @@ def _rural_population_density(population_path, target_raster_path):
         [(population_path, 1)], op, target_raster_path, gdal.GDT_Float32,
         FLOAT32_NODATA)
 
-def _population_curve_people_per_sqkm(pop_density_path, target_raster_path):
+def _population_curve_people_per_sqkm(
+        pop_density_path, target_raster_path, rural_population_max,
+        urbanization_population_max):
     """Risk based on population per square km.
 
     Risk function is defined as:
@@ -1984,8 +2007,10 @@ def _population_curve_people_per_sqkm(pop_density_path, target_raster_path):
     population_info = pygeoprocessing.get_raster_info(pop_density_path)
     population_nodata = population_info['nodata'][0]
     
-    slope = (1 - 0) / (2000 - 2)
+    slope = (1 - 0) / (rural_population_max - 2)
     intercept = 0 - (slope * 2)
+
+    scurve_midpoint = (urbanization_population_max - rural_population_max) / 2
 
     def op(pop_density_array):
         output = numpy.full(
@@ -1997,16 +2022,14 @@ def _population_curve_people_per_sqkm(pop_density_path, target_raster_path):
         output[less_than_two_mask] = 0
 
         linear_mask = (
-            (pop_density_array >= 2) & (pop_density_array <= 2000) & valid_pixels)
+            (pop_density_array >= 2) & (pop_density_array <= rural_population_max) & valid_pixels)
         output[linear_mask] = (slope * pop_density_array[linear_mask]) + intercept
 
-        sigmoidal_mask = (pop_density_array > 2000) & (valid_pixels)
+        sigmoidal_mask = (pop_density_array > rural_population_max) & (valid_pixels)
         
-        # 100100 taken as the midway s-curve "break"
-        # 20000 taken as a good value that a nice gradual s-curve
         output[sigmoidal_mask] = (
             1 + (0 - 1) / (1 + numpy.exp(
-                -1 * (pop_density_array[sigmoidal_mask] - 100100) / 20000)))
+                -1 * (pop_density_array[sigmoidal_mask] - scurve_midpoint) / urbanization_population_max)))
 
         return output
 
