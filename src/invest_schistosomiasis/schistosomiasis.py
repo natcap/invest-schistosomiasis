@@ -61,86 +61,77 @@ GENERIC_RISK = {
     'nv': '0 0 0 0'
 }
 
-# Snail and Parasite options adapted from  Walz et al. 2015 paper
-# https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004217
-SNAIL_OPTIONS = [ 
-        ("bt", "Default: Bulinus truncatus"),
-        ("bg", "Default: Biomphalaria")]
-PARASITE_OPTIONS = [
-        ("sh", "Default: S. haematobium"),
-        ("sm", "Defualt: S. mansoni")]
+TRAPEZOID_DEFINITION = (
+    "Trapezoid is defined by a line followed by a plateau followed by a second line."
+    " All y values before xa have value xa and all y values after xz have value yz.")
 
-SUITABILITY_FUNCTION_OPTIONS = [
-            spec.Option(key="linear", display_name="Linear"),
-            spec.Option(key="exponential", display_name="Exponential"),
-            spec.Option(key="scurve", display_name="S-curve"),
-            spec.Option(key="trapezoid", display_name="Trapezoid"),
-            spec.Option(key="gaussian", display_name="Gaussian"),
-        ]
-
+# Input definitions for our custom functions
 SPEC_FUNC_COLS = {
     'linear': {
         "xa": {"type": "number", "about": 
-                "First points x coordinate that defines the line."},
-        "ya": { "type": "number", "about": 
-                "First points y coordinate that defines the line."},
-        "xz": { "type": "number", "about": 
-                "Second points x coordinate that defines the line."},
-        "yz": { "type": "number", "about": 
-                "Second points y coordinate that defines the line."},
+               "First x coordinate of a line defined by two points: (xa, ya), (xz, yz)."},
+        "ya": {"type": "number", "about": 
+               "First y coordinate of a line defined by two points: (xa, ya), (xz, yz)."},
+        "xz": {"type": "number", "about": 
+               "Second x coordinate of a line defined by two points: (xa, ya), (xz, yz)."},
+        "yz": {"type": "number", "about": 
+               "Second y coordinate of a line defined by two points: (xa, ya), (xz, yz)."},
     },
     'trapezoid': {
         "xa": {"type": "number", "about": 
-                "First points x coordinate that defines the line."},
+               "First x coordinate of trapezoids first line defined by two points: (xa, ya), (xb, yb). "
+               f"{TRAPEZOID_DEFINITION}" },
         "ya": { "type": "number", "about": 
-                "First points y coordinate that defines the line."},
+               "First y coordinate of trapezoids first line defined by two points: (xa, ya), (xb, yb). "
+               f"{TRAPEZOID_DEFINITION}" },
         "xb": {"type": "number", "about": 
-                "First points x coordinate that defines the line."},
-        "yb": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
+               "Second x coordinate of trapezoids first line defined by two points: (xa, ya), (xb, yb). "
+               f"{TRAPEZOID_DEFINITION}" },
+        "yb": {"type": "number", "about":
+               "Second y coordinate of trapezoids first line defined by two points: (xa, ya), (xb, yb). "
+               f"{TRAPEZOID_DEFINITION}" },
         "xc": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
-        "yc": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
-        "xz": { "type": "number", "about":
-                "Second points x coordinate that defines the line."},
-        "yz": { "type": "number", "about":
-                "Second points y coordinate that defines the line."},
+               "First x coordinate of trapezoids second line defined by two points: (xc, yc), (xz, yz). "
+               f"{TRAPEZOID_DEFINITION}" },
+        "yc": {"type": "number", "about":
+               "First y coordinate of trapezoids second line defined by two points: (xc, yc), (xz, yz). "
+               f"{TRAPEZOID_DEFINITION}" },
+        "xz": {"type": "number", "about":
+               "Second x coordinate of trapezoids second line defined by two points: (xc, yc), (xz, yz). "
+               f"{TRAPEZOID_DEFINITION}" },
+        "yz": {"type": "number", "about":
+               "Second y coordinate of trapezoids second line defined by two points: (xc, yc), (xz, yz). "
+               f"{TRAPEZOID_DEFINITION}" },
     },
     'gaussian': {
-        "mean": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
-        "std": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
-        "lb": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
-        "ub": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
+        "mean": {"type": "number", "about": "Distribution mean."},
+        "std": {"type": "number", "about": "Standard deviation."},
+        "lb": {"type": "number", "about": "Lower boundary."},
+        "ub": {"type": "number", "about": "Upper boundary."},
     },
     'scurve': {
-        "yin": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
-        "yfin": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
-        "xmed": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
+        "yin": {"type": "number", "about": "Initial y-intercept value."},
+        "yfin": { "type": "number", "about": "Value of y at tail."},
+        "xmed": {"type": "number", "about": 
+                 "X value where curve transitions."},
         "inv_slope": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
+                "Defines the sharpness of the curve."},
     },
     'exponential': {
-        "yin": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
+        "yin": {"type": "number", "about": "Initial y-intercept value."},
         "xmed": { "type": "number", "about":
                 "First points y coordinate that defines the line."},
-        "decay_factor": {"type": "number", "about":
-                "First points x coordinate that defines the line."},
+        "decay_factor": {"type": "number", "about": "Determines rate of decay."},
         "max_dist": { "type": "number", "about":
-                "First points y coordinate that defines the line."},
+                "x value where y decays to 0."},
     }
 }
 
 FUNCS = ['linear', 'trapezoid', 'gaussian', 'scurve', 'exponential']
 
+# Helper dictionary for organizing the possible custom function inputs for
+# each suitability input type. Keys should match repsective MODEL_SPEC 
+# suitability type input ids.
 FUNC_PARAMS = {
     'rural_population': [
         spec.NumberInput(
@@ -160,17 +151,6 @@ FUNC_PARAMS = {
             about=desc['about'],
             required=f"default_population_suit == False and urbanization_population_func_type == '{fn}'",
             allowed=f"default_population_suit == False and urbanization_population_func_type == '{fn}'",
-            units=None
-        )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
-    ],
-    'water_proximity': [
-        spec.NumberInput(
-            id=f'water_proximity_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"calc_water_proximity and water_proximity_func_type == '{fn}'",
-            allowed=f"calc_water_proximity and water_proximity_func_type == '{fn}'",
             units=None
         )
         for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
@@ -221,24 +201,19 @@ FUNC_PARAMS = {
     ]
 }
 
-def get_spec_func_types(input_id, required=True, allowed=True):
-    """Construct function choice OptionStringInput."""
-    return spec.OptionStringInput(
-        id=f"{input_id}",
-        name="Suitability function type",
-        about="The function type to apply to the suitability factor.",
-        required=required,
-        allowed=allowed,
-        options=[
-            spec.Option(key="default", display_name="Default used in paper."),
-            spec.Option(key="linear", display_name="Linear"),
-            spec.Option(key="exponential", display_name="exponential"),
-            spec.Option(key="scurve", display_name="scurve"),
-            spec.Option(key="trapezoid", display_name="trapezoid"),
-            spec.Option(key="gaussian", display_name="gaussian"),
-        ])
+def _user_suitability_func_params(input_id):
+    """Return a list of spec.NumberInputs.
 
-def custom_input_id(input_id):
+    Given a string input_id create a list of spec.NumberInputs for the different
+    function types in SPEC_FUNC_COLS.
+
+    Parameters:
+        input_id (str) - unique id to differentiate user defined suitability
+                         inputs.
+
+    Returns:
+        A list of spec.NumberInput.
+    """
     return [
         spec.NumberInput(
             id=f'custom_{input_id}_{fn}_param_{key}',
@@ -251,35 +226,7 @@ def custom_input_id(input_id):
         for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
     ]
 
-FUNC_PARAMS_USER = custom_input_id
-
-def temp_spec_func_types(default_type):
-    """Specify multiple default options for temperature."""
-    options_dict = {
-        'snail': SNAIL_OPTIONS,
-        'parasite': PARASITE_OPTIONS,
-    }
-
-    default_param_list = options_dict[default_type]
-
-    default_options = [
-        spec.Option(
-            key=f"{key}",
-            display_name=f"{name}"
-        ) for key, name in default_param_list]
-
-    return spec.OptionStringInput(
-            id=f'default_prod_funcs',
-            name=f"{default_type} suitability function type",
-            about="The function type to apply to the suitability factor.",
-            options=[
-                *default_options,
-                spec.Option(key="linear", display_name="Linear"),
-                spec.Option(key="exponential", display_name="exponential"),
-                spec.Option(key="scurve", display_name="scurve"),
-                spec.Option(key="trapezoid", display_name="trapezoid"),
-                spec.Option(key="gaussian", display_name="gaussian"),
-            ])
+FUNC_PARAMS_USER = _user_suitability_func_params
 
 
 MODEL_SPEC = spec.ModelSpec(
@@ -299,8 +246,6 @@ MODEL_SPEC = spec.ModelSpec(
          {"Rural parameters": [key.id for key in FUNC_PARAMS['rural_population']]},
          "urbanization_population_func_type",
          {"Urbanization parameters": [key.id for key in FUNC_PARAMS['urbanization_population']]}],
-#            ["calc_water_proximity", "water_proximity_func_type",
-#             {"Water proximity parameters": FUNC_PARAMS['water_proximity']}],
         ["calc_water_depth", "water_depth_weight"],
         ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
         "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
@@ -409,18 +354,6 @@ MODEL_SPEC = spec.ModelSpec(
             required="calc_water_depth",
             allowed="calc_water_depth"
         ),
-#        spec.BooleanInput(
-#           id="calc_water_proximity,
-#           name="calculate water proximity",
-#           about=("Calculate water proximity. Uses the water presence raster"
-#                  " input."),
-#           required=False
-#        ),
-#         get_spec_func_types(
-#            "water_proximity_func_type", "calc_water_proximity",
-#            "calc_water_proximity"),
-#        ),
-#        *FUNC_PARAMS['water_proximity'],
         spec.SingleBandRasterInput(
             id="water_presence_path",
             name='water presence',
@@ -434,9 +367,16 @@ MODEL_SPEC = spec.ModelSpec(
             about="Calculate water velocity.",
             required=False
         ),
-        get_spec_func_types(
-            "water_velocity_func_type", "calc_water_velocity",
-            "calc_water_velocity"),
+        spec.OptionStringInput(
+            id="water_velocity_func_type",
+            name="Suitability function type",
+            about="The function type to apply to the suitability factor.",
+            required="calc_water_velocity",
+            allowed="calc_water_velocity",
+            options=[
+                spec.Option(key="default", display_name="Default used in paper."),
+                *SUITABILITY_FUNCTION_TYPES]
+        ),
         *FUNC_PARAMS['water_velocity'],
         spec.DEM.model_copy(update=dict(
             required="calc_water_velocity",
@@ -477,17 +417,29 @@ MODEL_SPEC = spec.ModelSpec(
             required="calc_temperature",
             allowed="calc_temperature"
         ),
-        temp_spec_func_types('snail').model_copy(update=dict(
-            id="snail_water_temp_func_type",
+        spec.OptionStringInput(
+            id=f'snail_water_temp_func_type',
+            name="Snail suitability function type",
+            about="The function type to apply to the suitability factor.",
             required="calc_temperature",
             allowed="calc_temperature"
-        )),
+            options=[
+                spec.Option(key="bt", display_name="Default: Bulinus truncatus."),
+                spec.Option(key="bg", display_name="Default: Biomphalaria."),
+                *SUITABILITY_FUNCTION_TYPES]
+        ),
         *FUNC_PARAMS['snail_water_temp'],
-        temp_spec_func_types('parasite').model_copy(update=dict(
-            id="parasite_water_temp_func_type",
+        spec.OptionStringInput(
+            id=f'parasite_water_temp_func_type',
+            name="Parasite suitability function type",
+            about="The function type to apply to the suitability factor.",
             required="calc_temperature",
             allowed="calc_temperature"
-        )),
+            options=[
+                spec.Option(key="sh", display_name="Default: S. haematobium."),
+                spec.Option(key="sm", display_name="Default: S. mansoni."),
+                *SUITABILITY_FUNCTION_TYPES]
+        ),
         *FUNC_PARAMS['parasite_water_temp'],
         spec.RatioInput(
             id="snail_water_temp_dry_weight",
@@ -523,7 +475,16 @@ MODEL_SPEC = spec.ModelSpec(
             name="calculate NDVI",
             required=False
         ),
-        get_spec_func_types("ndvi_func_type", "calc_ndvi", "calc_ndvi"),
+        spec.OptionStringInput(
+            id="ndvi_func_type",
+            name="Suitability function type",
+            about="The function type to apply to the suitability factor.",
+            required="calc_ndvi",
+            allowed="calc_ndvi",
+            options=[
+                spec.Option(key="default", display_name="Default used in paper."),
+                *SUITABILITY_FUNCTION_TYPES]
+        ),
         *FUNC_PARAMS['ndvi'],
         spec.SingleBandRasterInput(
             id="ndvi_dry_path",
@@ -698,7 +659,6 @@ _OUTPUT_BASE_FILES = {
     'ndvi_suit_dry': 'ndvi_suit_dry.tif',
     'ndvi_suit_wet': 'ndvi_suit_wet.tif',
     'water_velocity_suit': 'water_velocity_suit.tif',
-    'water_proximity_suit': 'water_proximity_suit.tif',
     'water_depth_suit': 'water_depth_suit.tif',
     'population_suitability': 'population_suitability.tif',
     #'water_stability_suit': 'water_stability_suit.tif',
@@ -736,7 +696,6 @@ _INTERMEDIATE_BASE_FILES = {
     'inverse_water_mask': 'inverse_water_mask.tif',
     'distance_from_shore': 'distance_from_shore.tif',
     'water_velocity_suit_plot': 'water_vel_suit_plot.png',
-    'water_proximity_suit_plot': 'water_proximity_suit_plot.png',
     'water_temp_suit_dry_plot': 'water_temp_suit_dry_plot.png',
     'unmasked_water_depth_suit': 'unmasked_water_depth_suit.tif',
     'water_depth_suit_plot': 'water_depth_suit_plot.png',
@@ -822,7 +781,6 @@ def execute(args):
         'default_population_suit': _population_curve_people_per_sqkm,
         #'urbanization': _urbanization,
         'water_velocity': _water_velocity,
-        #'water_proximity': _water_proximity,
         'water_depth': _water_depth_suit,
         }
 
@@ -870,7 +828,6 @@ def execute(args):
     suit_func_to_use = {}
     
     # Read func params from table
-    # Excluding 'water_proximity' for now.
     # TODO: determine whether to display population, urbanization, or 
     # something else.
     suitability_keys = [
@@ -1055,28 +1012,6 @@ def execute(args):
         #habitat_suit_risk_paths.append(file_registry['water_velocity_suit'])
         #habitat_suit_risk_weights.append(float(args['water_velocity_weight']))
         #outputs_to_tile.append((file_registry['water_velocity_suit'], default_color_path))
-
-    ### Proximity to water in meters
-    # NOT USING this suitability metric. Production Func. 9 in colab.
-#    dist_edt_task = graph.add_task(
-#        func=pygeoprocessing.distance_transform_edt,
-#        args=(
-#            (file_registry['aligned_water_presence'], 1),
-#            file_registry['distance'],
-#            (default_pixel_size[0], default_pixel_size[0])),
-#        target_path_list=[file_registry['distance']],
-#        dependent_task_list=[align_task],
-#        task_name='distance edt')
-#
-#    water_proximity_task = graph.add_task(
-#        suit_func_to_use['water_proximity']['func_name'],
-#        args=(file_registry['distance'], file_registry['water_proximity_suit']),
-#        kwargs=suit_func_to_use['water_proximity']['func_params'],
-#        dependent_task_list=[dist_edt_task],
-#        target_path_list=[file_registry[f'water_proximity_suit']],
-#        task_name=f'Water Proximity Suit')
-#    suitability_tasks.append(water_proximity_task)
-    #outputs_to_tile.append((file_registry[f'water_proximity_suit'], default_color_path))
 
     ### Population suitability risk
     # Population count to density in square km
@@ -1456,7 +1391,6 @@ def execute(args):
     
     ### Save plots of function choices
     # Read func params from table
-    # Excluding 'water_proximity' for now.
     # TODO: determine whether to display population, urbanization, or 
     # something else.
     # Store plot path locations to display in Jupyter Notebook
@@ -1912,30 +1846,6 @@ def _ndvi(ndvi_path, target_raster_path):
     pygeoprocessing.raster_calculator(
         [(ndvi_path, 1)], op, target_raster_path, gdal.GDT_Float32,
         BYTE_NODATA)
-
-def _water_proximity(water_proximity_path, target_raster_path):
-    """ """
-    #ProxRisk <- function(prox){ifelse(prox<1000, 1,ifelse(prox<=15000, -0.0000714 * prox + 1.0714,0))}
-    water_proximity_info = pygeoprocessing.get_raster_info(water_proximity_path)
-    water_proximity_nodata = water_proximity_info['nodata'][0]
-    def op(water_proximity_array):
-        output = numpy.full(
-            water_proximity_array.shape, FLOAT32_NODATA, dtype=numpy.float32)
-        valid_pixels = (~pygeoprocessing.array_equals_nodata(water_proximity_array, water_proximity_nodata))
-
-        # 
-        lt_km_mask = valid_pixels & (water_proximity_array < 1000)
-        lt_gt_mask = valid_pixels & (water_proximity_array >= 1000) & (water_proximity_array <= 15000)
-        gt_mask = valid_pixels & (water_proximity_array > 15000)
-        output[lt_km_mask] = 1
-        output[lt_gt_mask] = -0.0000714 * water_proximity_array[lt_gt_mask] + 1.0714
-        output[gt_mask] = 0
-
-        return output
-
-    pygeoprocessing.raster_calculator(
-        [(water_proximity_path, 1)], op, target_raster_path, gdal.GDT_Float32,
-        FLOAT32_NODATA)
 
 def _urbanization(pop_density_path, target_raster_path):
     """
