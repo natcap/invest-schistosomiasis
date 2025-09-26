@@ -1,11 +1,11 @@
-"""NatCap InVEST-like module for Schistosomiasis model.
-There are suitability functions for each snail (BT and BG) and
-parasite (SH and SM). There is a version for the wet season and the dry season;
-i.e., NDVI for both wet and dry season, along with 8 NDVI suitability layers
-(1 per species per season).
+"""NatCap InVEST Plugin for modeling Schistosomiasis.
+
+Adapted from Walz et al. 2015 paper
+https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004217
+
+Contributors:
+Doug Denu, Andrew Chamberlin, Giulio De Leo, Lisa Mandle, Emily Soth, Dave Fisher
 """
-#TODO:
-# - Check out leafmap.org / leafmap python project
 
 import logging
 import os
@@ -41,6 +41,7 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 FLOAT32_NODATA = float(numpy.finfo(numpy.float32).min)
 BYTE_NODATA = 255
 
+# Coloramps for styling output tiles for companion notebook
 POP_RISK = {
     '0%': '247 251 255',
     '20%': '209 226 243',
@@ -60,8 +61,8 @@ GENERIC_RISK = {
     'nv': '0 0 0 0'
 }
 
-SCHISTO = "Schistosomiasis"
-
+# Snail and Parasite options adapted from  Walz et al. 2015 paper
+# https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004217
 SNAIL_OPTIONS = [ 
         ("bt", "Default: Bulinus truncatus"),
         ("bg", "Default: Biomphalaria")]
@@ -69,34 +70,13 @@ PARASITE_OPTIONS = [
         ("sh", "Default: S. haematobium"),
         ("sm", "Defualt: S. mansoni")]
 
-def get_spec_func_types(input_id, required=True, allowed=True):
-    """Construct function choice OptionStringInput."""
-    return spec.OptionStringInput(
-        id=f"{input_id}",
-        name="Suitability function type",
-        about="The function type to apply to the suitability factor.",
-        required=required,
-        allowed=allowed,
-        options=[
-            spec.Option(key="default", display_name="Default used in paper."),
+SUITABILITY_FUNCTION_OPTIONS = [
             spec.Option(key="linear", display_name="Linear"),
-            spec.Option(key="exponential", display_name="exponential"),
-            spec.Option(key="scurve", display_name="scurve"),
-            spec.Option(key="trapezoid", display_name="trapezoid"),
-            spec.Option(key="gaussian", display_name="gaussian"),
-        ])
-
-CUSTOM_SPEC_FUNC_TYPES = spec.OptionStringInput(
-        id="production_functions",
-        name="Suitability function type",
-        about="The function type to apply to the suitability factor.",
-        options=[
-            spec.Option(key="linear", display_name="Linear"),
-            spec.Option(key="exponential", display_name="exponential"),
-            spec.Option(key="scurve", display_name="scurve"),
-            spec.Option(key="trapezoid", display_name="trapezoid"),
-            spec.Option(key="gaussian", display_name="gaussian"),
-        ])
+            spec.Option(key="exponential", display_name="Exponential"),
+            spec.Option(key="scurve", display_name="S-curve"),
+            spec.Option(key="trapezoid", display_name="Trapezoid"),
+            spec.Option(key="gaussian", display_name="Gaussian"),
+        ]
 
 SPEC_FUNC_COLS = {
     'linear': {
@@ -240,6 +220,23 @@ FUNC_PARAMS = {
         for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
     ]
 }
+
+def get_spec_func_types(input_id, required=True, allowed=True):
+    """Construct function choice OptionStringInput."""
+    return spec.OptionStringInput(
+        id=f"{input_id}",
+        name="Suitability function type",
+        about="The function type to apply to the suitability factor.",
+        required=required,
+        allowed=allowed,
+        options=[
+            spec.Option(key="default", display_name="Default used in paper."),
+            spec.Option(key="linear", display_name="Linear"),
+            spec.Option(key="exponential", display_name="exponential"),
+            spec.Option(key="scurve", display_name="scurve"),
+            spec.Option(key="trapezoid", display_name="trapezoid"),
+            spec.Option(key="gaussian", display_name="gaussian"),
+        ])
 
 def custom_input_id(input_id):
     return [
@@ -568,11 +565,13 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
-        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+        spec.OptionStringInput(
             id="custom_one_func_type",
+            name="Suitability function type",
+            about="The function type to apply to the suitability factor.",
             required="calc_custom_one",
             allowed="calc_custom_one"
-        )),
+            options=SUITABILITY_FUNCTION_OPTIONS),
         *FUNC_PARAMS_USER('one'),
         spec.SingleBandRasterInput(
             id='custom_one_path',
@@ -597,11 +596,13 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
-        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+        spec.OptionStringInput(
             id="custom_two_func_type",
+            name="Suitability function type",
+            about="The function type to apply to the suitability factor.",
             required="calc_custom_two",
             allowed="calc_custom_two"
-        )),
+            options=SUITABILITY_FUNCTION_OPTIONS),
         *FUNC_PARAMS_USER('two'),
         spec.SingleBandRasterInput(
             id='custom_two_path',
@@ -626,11 +627,13 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
-        CUSTOM_SPEC_FUNC_TYPES.model_copy(update=dict(
+        spec.OptionStringInput(
             id="custom_three_func_type",
+            name="Suitability function type",
+            about="The function type to apply to the suitability factor.",
             required="calc_custom_three",
             allowed="calc_custom_three"
-        )),
+            options=SUITABILITY_FUNCTION_OPTIONS),
         *FUNC_PARAMS_USER('three'),
         spec.SingleBandRasterInput(
             id='custom_three_path',
