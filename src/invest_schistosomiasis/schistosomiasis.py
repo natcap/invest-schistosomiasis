@@ -626,93 +626,337 @@ MODEL_SPEC = spec.ModelSpec(
     ],
     outputs=[
         spec.SingleBandRasterOutput(
-            id="B",
-            path="B.tif",
+            id='snail_water_temp_suit_wet',
+            path='snail_water_temp_suit_wet.tif',
+            about="",
+            data_typ=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='parasite_water_temp_suit_dry',
+            path='parasite_water_temp_suit_dry.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='parasite_water_temp_suit_wet',
+            path='parasite_water_temp_suit_wet.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='ndvi_suit_dry',
+            path='ndvi_suit_dry.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='ndvi_suit_wet',
+            path='ndvi_suit_wet.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='water_velocity_suit',
+            path='water_velocity_suit.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='water_depth_suit',
+            path='water_depth_suit.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='population_suitability',
+            path='population_suitability.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='habitat_stability_suit',
+            path='habitat_stability_suit.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='habitat_suit_weighted_mean',
+            path='habitat_suit_weighted_mean.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='custom_suit_one',
+            path='custom_suit_one.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='custom_suit_two',
+            path='custom_suit_two.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='custom_suit_three',
+            path='custom_suit_three.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='normalized_convolved_risk',
+            path='normalized_convolved_risk.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='population_suit_sqkm',
+            path='population_suit_sqkm.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='snail_water_temp_suit_dry',
+            path='snail_water_temp_suit_dry.tif',
             about=(
-                "Map of baseflow values, the contribution of a pixel to slow release flow"
-                " (which is not evapotranspired before it reaches the stream)."
+                "Suitability risk."
             ),
             data_type=float,
-            units=u.millimeter
+            units=None
         ),
+        spec.TASKGRAPH_CACHE,
+        spec.SingleBandRasterOutput(
+            id='aligned_pop_count',
+            path='intermediate/aligned_population_count.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_pop_density',
+            path='intermediate/aligned_pop_density.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_water_temp_dry',
+            path='intermediate/aligned_water_temp_dry.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_water_temp_wet',
+            path='intermediate/aligned_water_temp_wet.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_ndvi_dry',
+            path='intermediate/aligned_ndvi_dry.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_ndvi_wet',
+            path='intermediate/aligned_ndvi_wet.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_mask',
+            path='intermediate/aligned_valid_pixels_mask.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_dem',
+            path='intermediate/aligned_dem.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_water_presence',
+            path='intermediate/aligned_water_presence.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_lulc',
+            path='intermediate/aligned_lulc.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_custom_one',
+            path='intermediate/aligned_custom_one.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_custom_two',
+            path='intermediate/aligned_custom_two.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='aligned_custom_three',
+            path='intermediate/aligned_custom_three.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='masked_population',
+            path='intermediate/masked_population.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='population_density',
+            path='intermediate/population_density.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='population_hectares',
+            path='intermediate/population_hectare.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='slope',
+            path='intermediate/slope.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='degree_slope',
+            path='intermediate/degree_slope.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='masked_lulc',
+            path='intermediate/masked_lulc.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
         spec.VectorOutput(
-            id="aggregated_results_swy",
-            path="aggregated_results_swy.shp",
-            about="Table of biophysical values for each watershed",
-            geometry_types={"MULTIPOLYGON", "POLYGON"},
-            fields=[
-                spec.NumberOutput(
-                    id="qb",
-                    about="Mean local recharge value within the watershed",
-                    units=u.millimeter
-                ),
-                spec.NumberOutput(
-                    id="vri_sum",
-                    about=(
-                        "Total recharge contribution, (positive or negative) within the"
-                        " watershed."
-                    ),
-                    units=u.millimeter
-                )
-            ]
-        ),
-        spec.TASKGRAPH_CACHE
+            id='reprojected_admin_boundaries',
+            path='reprojected_admin_boundaries.gpkg',
+            about="",
+            geometry_types=["POLYGON", "MULTIPOLYGON"],
+        spec.SingleBandRasterOutput(
+            id='distance',
+            path='intermediate/distance.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='inverse_water_mask',
+            path='intermediate/inverse_water_mask.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='distance_from_shore',
+            path='intermediate/distance_from_shore.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.FileOutput(
+            id='water_velocity_suit_plot',
+            path='water_vel_suit_plot.png',
+            ),
+        spec.FileOutput(
+            id='water_temp_suit_dry_plot',
+            path='water_temp_suit_dry_plot.png',
+            ),
+        spec.SingleBandRasterOutput(
+            id='unmasked_water_depth_suit',
+            path='intermediate/unmasked_water_depth_suit.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.FileOutput(
+            id='water_depth_suit_plot',
+            path='water_depth_suit_plot.png',
+            ),
+        spec.SingleBandRasterOutput(
+            id='rural_population_suit',
+            path='intermediate/rural_population_suit.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='urbanization_population_suit',
+            path='intermediate/urbanization_population_suit.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.FileOutput(
+            id='custom_suit_one_plot',
+            path='custom_suit_one_plot.png',
+            ),
+        spec.FileOutput(
+            id='custom_suit_two_plot',
+            path='custom_suit_two_plot.png',
+            ),
+        spec.FileOutput(
+            id='custom_suit_three_plot',
+            path='custom_suit_three_plot.png',
+            ),
+        spec.FileOutput(
+            id='generic_risk_style',
+            path='color-profiles/generic_risk_style.txt',
+            ),
+        spec.FileOutput(
+            id='generic_pop_risk_style',
+            path='color-profiles/generic_pop_risk_style.txt',
+            ),
     ]
 )
 
 
-_OUTPUT_BASE_FILES = {
-    'snail_water_temp_suit_dry': 'snail_water_temp_suit_dry.tif',
-    'snail_water_temp_suit_wet': 'snail_water_temp_suit_wet.tif',
-    'parasite_water_temp_suit_dry': 'parasite_water_temp_suit_dry.tif',
-    'parasite_water_temp_suit_wet': 'parasite_water_temp_suit_wet.tif',
-    'ndvi_suit_dry': 'ndvi_suit_dry.tif',
-    'ndvi_suit_wet': 'ndvi_suit_wet.tif',
-    'water_velocity_suit': 'water_velocity_suit.tif',
-    'water_depth_suit': 'water_depth_suit.tif',
-    'population_suitability': 'population_suitability.tif',
-    'habitat_stability_suit': 'habitat_stability_suit.tif',
-    'habitat_suit_weighted_mean': 'habitat_suit_weighted_mean.tif',
-    'custom_suit_one': 'custom_suit_one.tif',
-    'custom_suit_two': 'custom_suit_two.tif',
-    'custom_suit_three': 'custom_suit_three.tif',
-    'normalized_convolved_risk': 'normalized_convolved_risk.tif',
-    'population_suit_sqkm': 'population_suit_sqkm.tif',
-}
-
 _INTERMEDIATE_BASE_FILES = {
-    'aligned_pop_count': 'aligned_population_count.tif',
-    'aligned_pop_density': 'aligned_pop_density.tif',
-    'aligned_water_temp_dry': 'aligned_water_temp_dry.tif',
-    'aligned_water_temp_wet': 'aligned_water_temp_wet.tif',
-    'aligned_ndvi_dry': 'aligned_ndvi_dry.tif',
-    'aligned_ndvi_wet': 'aligned_ndvi_wet.tif',
-    'aligned_mask': 'aligned_valid_pixels_mask.tif',
-    'aligned_dem': 'aligned_dem.tif',
-    'aligned_water_presence': 'aligned_water_presence.tif',
-    'aligned_lulc': 'aligned_lulc.tif',
-    'aligned_custom_one': 'aligned_custom_one.tif',
-    'aligned_custom_two': 'aligned_custom_two.tif',
-    'aligned_custom_three': 'aligned_custom_three.tif',
-    'masked_population': 'masked_population.tif',
-    'population_density': 'population_density.tif',
-    'population_hectares': 'population_hectare.tif',
-    'slope': 'slope.tif',
-    'degree_slope': 'degree_slope.tif',
-    'masked_lulc': 'masked_lulc.tif',
-    'reprojected_admin_boundaries': 'reprojected_admin_boundaries.gpkg',
-    'distance': 'distance.tif',
-    'inverse_water_mask': 'inverse_water_mask.tif',
-    'distance_from_shore': 'distance_from_shore.tif',
-    'water_velocity_suit_plot': 'water_vel_suit_plot.png',
-    'water_temp_suit_dry_plot': 'water_temp_suit_dry_plot.png',
-    'unmasked_water_depth_suit': 'unmasked_water_depth_suit.tif',
-    'water_depth_suit_plot': 'water_depth_suit_plot.png',
-    'rural_population_suit': 'rural_population_suit.tif',
-    'urbanization_population_suit': 'urbanization_population_suit.tif',
-    'custom_suit_one_plot': 'custom_suit_one_plot.png',
-    'custom_suit_two_plot': 'custom_suit_two_plot.png',
-    'custom_suit_three_plot': 'custom_suit_three_plot.png',
 }
 
 
@@ -860,8 +1104,11 @@ def execute(args):
         args['custom_three_path'] (string): A raster representing the user suitability.
         args['custom_three_weight'] (float): The weight this factor should have on overall risk.
 
+        Returns:
+            File registry dictionary mapping MODEL_SPEC output ids to absolute paths
     """
     LOGGER.info(f"Execute {SCHISTO}")
+    args, file_registry, graph = MODEL_SPEC.setup(args)
 
     HABITAT_RISK_KEYS = [
         'water_velocity', 'water_temp_dry', 'ndvi_dry', 'water_temp_wet',
@@ -884,34 +1131,13 @@ def execute(args):
         'water_depth': _water_depth_suit,
         }
 
-    output_dir = os.path.join(args['workspace_dir'], 'output')
     intermediate_dir = os.path.join(args['workspace_dir'], 'intermediate')
     func_plot_dir = os.path.join(intermediate_dir, 'plot_previews')
-    color_profiles_dir = os.path.join(intermediate_dir, 'color-profiles')
-    utils.make_directories(
-            [output_dir, intermediate_dir, func_plot_dir, color_profiles_dir])
+    utils.make_directories([func_plot_dir])
 
-    suffix = utils.make_suffix_string(args, 'results_suffix')
-    file_registry = utils.build_file_registry(
-        [(_OUTPUT_BASE_FILES, output_dir),
-         (_INTERMEDIATE_BASE_FILES, intermediate_dir)],
-        suffix)
-
-    work_token_dir = os.path.join(intermediate_dir, '_taskgraph_working_dir')
-    try:
-        n_workers = int(args['n_workers'])
-    except (KeyError, ValueError, TypeError):
-        # KeyError when n_workers is not present in args
-        # ValueError when n_workers is an empty string.
-        # TypeError when n_workers is None.
-        n_workers = -1  # Synchronous execution
-    graph = taskgraph.TaskGraph(work_token_dir, n_workers)
-    
     # Write color profiles to text file
-    default_color_path = os.path.join(
-            color_profiles_dir, 'generic-risk-style.txt')
-    pop_color_path = os.path.join(
-            color_profiles_dir, 'generic-pop-risk-style.txt')
+    default_color_path = file_registry['generic_risk_style']
+    pop_color_path = file_registry['generic_pop_risk_style']
     color_path_list = [default_color_path, pop_color_path]
     for color_profile, profile_path in zip(
             [GENERIC_RISK, POP_RISK], color_path_list):
