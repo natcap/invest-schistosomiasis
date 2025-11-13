@@ -1,10 +1,11 @@
-"""NatCap InVEST Plugin for modeling Schistosomiasis.
+"""NatCap InVEST Plugin for modeling Schistosomiasis risk.
 
 Adapted from Walz et al. 2015 paper
 https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004217
 
 Contributors:
-Doug Denu, Andrew Chamberlin, Giulio De Leo, Lisa Mandle, Emily Soth, Dave Fisher
+Doug Denu, Andrew Chamberlin, Giulio De Leo, Lisa Mandle, Emily Soth,
+    Dave Fisher
 """
 
 import logging
@@ -42,6 +43,7 @@ FLOAT32_NODATA = float(numpy.finfo(numpy.float32).min)
 BYTE_NODATA = 255
 
 # Coloramps for styling output tiles for companion notebook
+# Blues
 POP_RISK = {
     '0%': '247 251 255',
     '20%': '209 226 243',
@@ -51,7 +53,7 @@ POP_RISK = {
     '100%': '8 48 107',
     'nv': '1 1 1 0'
 }
-
+# Red organge yellow
 GENERIC_RISK = {
     '0%': '255 255 178',
     '25%': '254 204 92',
@@ -61,12 +63,13 @@ GENERIC_RISK = {
     'nv': '0 0 0 0'
 }
 
+# About text for defining a trapezoid function
 TRAPEZOID_DEFINITION = (
     "Trapezoid is defined by a line followed by a plateau followed by a second line."
     " All y values before xa have value xa and all y values after xz have value yz.")
 
 # Input definitions for our custom functions
-SPEC_FUNC_COLS = {
+SPEC_FUNC_DEFINITIONS = {
     'linear': {
         "xa": {"type": "number", "about": 
                "First x coordinate of a line defined by two points: (xa, ya), (xz, yz)."},
@@ -127,7 +130,8 @@ SPEC_FUNC_COLS = {
     }
 }
 
-FUNCS = ['linear', 'trapezoid', 'gaussian', 'scurve', 'exponential']
+# Convenient list of function keys
+FUNC_KEYS = [SPEC_FUNC_DEFINITIONS.keys()]
 
 # Helper dictionary for organizing the possible custom function inputs for
 # each suitability input type. Keys should match repsective MODEL_SPEC 
@@ -135,69 +139,69 @@ FUNCS = ['linear', 'trapezoid', 'gaussian', 'scurve', 'exponential']
 FUNC_PARAMS = {
     'rural_population': [
         spec.NumberInput(
-            id=f'rural_population_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"default_population_suit == False and rural_population_func_type == '{fn}'",
-            allowed=f"default_population_suit == False and rural_population_func_type == '{fn}'",
+            id=f'rural_population_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"default_population_suit == False and rural_population_func_type == '{func_name}'",
+            allowed=f"default_population_suit == False and rural_population_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ],
     'urbanization_population': [
         spec.NumberInput(
-            id=f'urbanization_population_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"default_population_suit == False and urbanization_population_func_type == '{fn}'",
-            allowed=f"default_population_suit == False and urbanization_population_func_type == '{fn}'",
+            id=f'urbanization_population_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"default_population_suit == False and urbanization_population_func_type == '{func_name}'",
+            allowed=f"default_population_suit == False and urbanization_population_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ],
     'water_velocity': [
         spec.NumberInput(
-            id=f'water_velocity_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"calc_water_velocity and water_velocity_func_type == '{fn}'",
-            allowed=f"calc_water_velocity and water_velocity_func_type == '{fn}'",
+            id=f'water_velocity_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"calc_water_velocity and water_velocity_func_type == '{func_name}'",
+            allowed=f"calc_water_velocity and water_velocity_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ],
     'snail_water_temp': [
         spec.NumberInput(
-            id=f'snail_water_temp_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"calc_temperature and snail_water_temp_func_type == '{fn}'",
-            allowed=f"calc_temperature and snail_water_temp_func_type == '{fn}'",
+            id=f'snail_water_temp_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"calc_temperature and snail_water_temp_func_type == '{func_name}'",
+            allowed=f"calc_temperature and snail_water_temp_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ],
     'parasite_water_temp': [
         spec.NumberInput(
-            id=f'parasite_water_temp_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
-            allowed=f"calc_temperature and parasite_water_temp_func_type == '{fn}'",
+            id=f'parasite_water_temp_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"calc_temperature and parasite_water_temp_func_type == '{func_name}'",
+            allowed=f"calc_temperature and parasite_water_temp_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ],
     'ndvi': [
         spec.NumberInput(
-            id=f'ndvi_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"calc_ndvi and ndvi_func_type == '{fn}'",
-            allowed=f"calc_ndvi and ndvi_func_type == '{fn}'",
+            id=f'ndvi_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"calc_ndvi and ndvi_func_type == '{func_name}'",
+            allowed=f"calc_ndvi and ndvi_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ]
 }
 
@@ -205,7 +209,7 @@ def _user_suitability_func_params(input_id):
     """Return a list of spec.NumberInputs.
 
     Given a string input_id create a list of spec.NumberInputs for the different
-    function types in SPEC_FUNC_COLS.
+    function types in SPEC_FUNC_DEFINITIONS.
 
     Parameters:
         input_id (str) - unique id to differentiate user defined suitability
@@ -216,14 +220,14 @@ def _user_suitability_func_params(input_id):
     """
     return [
         spec.NumberInput(
-            id=f'custom_{input_id}_{fn}_param_{key}',
-            name=f'{key}',
-            about=desc['about'],
-            required=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
-            allowed=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{fn}'",
+            id=f'custom_{input_id}_{func_name}_param_{param_name}',
+            name=f'{param_name}',
+            about=param_desc['about'],
+            required=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{func_name}'",
+            allowed=f"calc_custom_{input_id} and custom_{input_id}_func_type == '{func_name}'",
             units=None
         )
-        for fn in FUNCS for key, desc in SPEC_FUNC_COLS[fn].items()
+        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
     ]
 
 FUNC_PARAMS_USER = _user_suitability_func_params
@@ -853,7 +857,7 @@ def execute(args):
             func_type = args[f'{suit_key}_func_type']
         if func_type != 'default':
             func_params = {}
-            for key in SPEC_FUNC_COLS[func_type].keys():
+            for key in SPEC_FUNC_DEFINITIONS[func_type].keys():
                 LOGGER.info(f'{suit_key}_{func_type}_param_{key}')
                 func_params[key] = float(args[f'{suit_key}_{func_type}_param_{key}'])
             user_func = FUNC_TYPES[func_type]
@@ -882,7 +886,7 @@ def execute(args):
                 user_func = DEFAULT_FUNC_TYPES['temperature']
             else:
                 func_params = {}
-                for key in SPEC_FUNC_COLS[func_type].keys():
+                for key in SPEC_FUNC_DEFINITIONS[func_type].keys():
                     func_params[key] = float(args[f'{suit_key}_{func_type}_param_{key}'])
                 user_func = FUNC_TYPES[func_type]
 
