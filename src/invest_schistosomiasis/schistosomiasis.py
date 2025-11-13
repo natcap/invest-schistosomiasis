@@ -724,8 +724,8 @@ def execute(args):
         'snail_water_temp', 'parasite_water_temp', 'ndvi', and
         'custom_[one|two|three]'. The functions availabe are 'linear', 
         'exponential', 'scurve', 'guassian', 'trapezoid'. Each of these
-        functions are defined a set of input parameters. For docstring brevity
-        'rural_population' is used as an example of how the function
+        functions are defined using a set of input parameters. For docstring
+        brevity 'rural_population' is used as an example of how the function
         parameters are expected in 'args' for each function type.
 
         args['rural_population_linear_param_xa'] (number): First x coordinate
@@ -803,62 +803,62 @@ def execute(args):
             population at which risk is 0.
         args['rural_population_func_type'] (string): The function type
             to apply to the suitability factor.
-        args['urbanization_population_func_type'] (option_string): The function
+        args['urbanization_population_func_type'] (string): The function
             type to apply to the suitability factor.
         args['calc_water_depth'] (boolean): Calculate water depth. Using the
             water presence raster input, uses a water distance from shore as a
             proxy for depth.
-        args['water_depth_weight'] (ratio): The weight this factor should have
+        args['water_depth_weight'] (float): The weight this factor should have
             on overall risk.
-        args['water_presence_path'] (raster): A raster indicating presence of
+        args['water_presence_path'] (string): A raster indicating presence of
         `water.
         args['calc_water_velocity'] (boolean): Calculate water velocity.
-        args['water_velocity_func_type'] (option_string): The function type to
+        args['water_velocity_func_type'] (string): The function type to
             apply to the suitability factor.
-        args['dem_path'] (raster): Map of elevation above sea level.
-        args['water_velocity_weight'] (ratio): The weight this factor should
+        args['dem_path'] (string): Map of elevation above sea level.
+        args['water_velocity_weight'] (float): The weight this factor should
             have on overall risk.
         args['calc_temperature'] (boolean): Calculate water temperature.
-        args['water_temp_dry_path'] (raster): A raster representing the water
+        args['water_temp_dry_path'] (string): A raster representing the water
             temp for dry season.
-        args['water_temp_wet_path'] (raster): A raster representing the water
+        args['water_temp_wet_path'] (string): A raster representing the water
             temp for wet season.
-        args['snail_water_temp_func_type'] (option_string): The function type
+        args['snail_water_temp_func_type'] (string): The function type
             to apply to the suitability factor.
-        args['parasite_water_temp_func_type'] (option_string): The function
+        args['parasite_water_temp_func_type'] (string): The function
             type to apply to the suitability factor.
-        args['snail_water_temp_dry_weight'] (ratio): The weight this factor
+        args['snail_water_temp_dry_weight'] (float): The weight this factor
             should have on overall risk.
-        args['snail_water_temp_wet_weight'] (ratio): The weight this factor
+        args['snail_water_temp_wet_weight'] (float): The weight this factor
             should have on overall risk.
-        args['parasite_water_temp_dry_weight'] (ratio): The weight this factor
+        args['parasite_water_temp_dry_weight'] (float): The weight this factor
             should have on overall risk.
-        args['parasite_water_temp_wet_weight'] (ratio): The weight this factor
+        args['parasite_water_temp_wet_weight'] (float): The weight this factor
             should have on overall risk.
         args['calc_ndvi'] (boolean): Calculate NDVI.
-        args['ndvi_func_type'] (option_string): The function type to apply to
+        args['ndvi_func_type'] (string): The function type to apply to
             the suitability factor.
-        args['ndvi_dry_path'] (raster): A raster representing the ndvi for dry season.
-        args['ndvi_dry_weight'] (ratio): The weight this factor should have on overall risk.
-        args['ndvi_wet_path'] (raster): A raster representing the ndvi for wet season.
-        args['ndvi_wet_weight'] (ratio): The weight this factor should have on overall risk.
+        args['ndvi_dry_path'] (string): A raster representing the ndvi for dry season.
+        args['ndvi_dry_weight'] (float): The weight this factor should have on overall risk.
+        args['ndvi_wet_path'] (string): A raster representing the ndvi for wet season.
+        args['ndvi_wet_weight'] (float): The weight this factor should have on overall risk.
         args['calc_custom_one'] (boolean): User defined suitability function.
-        args['custom_one_func_type'] (option_string): The function type to
+        args['custom_one_func_type'] (string): The function type to
             apply to the suitability factor.
-        args['custom_one_path'] (raster): A raster representing the user suitability.
-        args['custom_one_weight'] (ratio): The weight this factor should have
+        args['custom_one_path'] (string): A raster representing the user suitability.
+        args['custom_one_weight'] (float): The weight this factor should have
             on overall risk.
         args['calc_custom_two'] (boolean): User defined suitability function.
-        args['custom_two_func_type'] (option_string): The function type to apply
+        args['custom_two_func_type'] (string): The function type to apply
             to the suitability factor.
-        args['custom_two_path'] (raster): A raster representing the user suitability.
-        args['custom_two_weight'] (ratio): The weight this factor should have on
+        args['custom_two_path'] (string): A raster representing the user suitability.
+        args['custom_two_weight'] (float): The weight this factor should have on
             overall risk.
         args['calc_custom_three'] (boolean): User defined suitability function.
-        args['custom_three_func_type'] (option_string): The function type to apply
+        args['custom_three_func_type'] (string): The function type to apply
             to the suitability factor.
-        args['custom_three_path'] (raster): A raster representing the user suitability.
-        args['custom_three_weight'] (ratio): The weight this factor should have on overall risk.
+        args['custom_three_path'] (string): A raster representing the user suitability.
+        args['custom_three_weight'] (float): The weight this factor should have on overall risk.
 
     """
     LOGGER.info(f"Execute {SCHISTO}")
