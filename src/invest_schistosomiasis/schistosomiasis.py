@@ -131,7 +131,7 @@ SPEC_FUNC_DEFINITIONS = {
 }
 
 # Convenient list of function keys
-FUNC_KEYS = [SPEC_FUNC_DEFINITIONS.keys()]
+FUNC_KEYS = list(SPEC_FUNC_DEFINITIONS.keys())
 
 # Helper dictionary for organizing the possible custom function inputs for
 # each suitability input type. Keys should match repsective MODEL_SPEC 
@@ -232,6 +232,12 @@ def _user_suitability_func_params(input_id):
 
 FUNC_PARAMS_USER = _user_suitability_func_params
 
+SUITABILITY_FUNCTION_OPTIONS = [
+    spec.Option(key="linear", display_name="linear"),
+    spec.Option(key="exponential", display_name="exponential"),
+    spec.Option(key="scurve", display_name="scurve"),
+    spec.Option(key="trapezoid", display_name="trapezoid"),
+    spec.Option(key="gaussian", display_name="gaussian")]
 
 MODEL_SPEC = spec.ModelSpec(
     model_id='schistosomiasis',
@@ -379,7 +385,7 @@ MODEL_SPEC = spec.ModelSpec(
             allowed="calc_water_velocity",
             options=[
                 spec.Option(key="default", display_name="Default used in paper."),
-                *SUITABILITY_FUNCTION_TYPES]
+                *SUITABILITY_FUNCTION_OPTIONS]
         ),
         *FUNC_PARAMS['water_velocity'],
         spec.DEM.model_copy(update=dict(
@@ -426,11 +432,11 @@ MODEL_SPEC = spec.ModelSpec(
             name="Snail suitability function type",
             about="The function type to apply to the suitability factor.",
             required="calc_temperature",
-            allowed="calc_temperature"
+            allowed="calc_temperature",
             options=[
                 spec.Option(key="bt", display_name="Default: Bulinus truncatus."),
                 spec.Option(key="bg", display_name="Default: Biomphalaria."),
-                *SUITABILITY_FUNCTION_TYPES]
+                *SUITABILITY_FUNCTION_OPTIONS]
         ),
         *FUNC_PARAMS['snail_water_temp'],
         spec.OptionStringInput(
@@ -438,11 +444,11 @@ MODEL_SPEC = spec.ModelSpec(
             name="Parasite suitability function type",
             about="The function type to apply to the suitability factor.",
             required="calc_temperature",
-            allowed="calc_temperature"
+            allowed="calc_temperature",
             options=[
                 spec.Option(key="sh", display_name="Default: S. haematobium."),
                 spec.Option(key="sm", display_name="Default: S. mansoni."),
-                *SUITABILITY_FUNCTION_TYPES]
+                *SUITABILITY_FUNCTION_OPTIONS]
         ),
         *FUNC_PARAMS['parasite_water_temp'],
         spec.RatioInput(
@@ -450,28 +456,28 @@ MODEL_SPEC = spec.ModelSpec(
             about="The weight this factor should have on overall risk.",
             name="snail water temp dry risk weight",
             required="calc_temperature",
-            allowed="calc_temperature"
+            allowed="calc_temperature",
         ),
         spec.RatioInput(
             id="snail_water_temp_wet_weight",
             about="The weight this factor should have on overall risk.",
             name="snail water temp wet risk weight",
             required="calc_temperature",
-            allowed="calc_temperature"
+            allowed="calc_temperature",
         ),
         spec.RatioInput(
             id="parasite_water_temp_dry_weight",
             about="The weight this factor should have on overall risk.",
             name="parasite water temp dry risk weight",
             required="calc_temperature",
-            allowed="calc_temperature"
+            allowed="calc_temperature",
         ),
         spec.RatioInput(
             id="parasite_water_temp_wet_weight",
             about="The weight this factor should have on overall risk.",
             name="parasite water temp wet risk weight",
             required="calc_temperature",
-            allowed="calc_temperature"
+            allowed="calc_temperature",
         ),
         spec.BooleanInput(
             id="calc_ndvi",
@@ -487,7 +493,7 @@ MODEL_SPEC = spec.ModelSpec(
             allowed="calc_ndvi",
             options=[
                 spec.Option(key="default", display_name="Default used in paper."),
-                *SUITABILITY_FUNCTION_TYPES]
+                *SUITABILITY_FUNCTION_OPTIONS]
         ),
         *FUNC_PARAMS['ndvi'],
         spec.SingleBandRasterInput(
@@ -535,7 +541,7 @@ MODEL_SPEC = spec.ModelSpec(
             name="Suitability function type",
             about="The function type to apply to the suitability factor.",
             required="calc_custom_one",
-            allowed="calc_custom_one"
+            allowed="calc_custom_one",
             options=SUITABILITY_FUNCTION_OPTIONS),
         *FUNC_PARAMS_USER('one'),
         spec.SingleBandRasterInput(
@@ -566,7 +572,7 @@ MODEL_SPEC = spec.ModelSpec(
             name="Suitability function type",
             about="The function type to apply to the suitability factor.",
             required="calc_custom_two",
-            allowed="calc_custom_two"
+            allowed="calc_custom_two",
             options=SUITABILITY_FUNCTION_OPTIONS),
         *FUNC_PARAMS_USER('two'),
         spec.SingleBandRasterInput(
@@ -597,7 +603,7 @@ MODEL_SPEC = spec.ModelSpec(
             name="Suitability function type",
             about="The function type to apply to the suitability factor.",
             required="calc_custom_three",
-            allowed="calc_custom_three"
+            allowed="calc_custom_three",
             options=SUITABILITY_FUNCTION_OPTIONS),
         *FUNC_PARAMS_USER('three'),
         spec.SingleBandRasterInput(
@@ -665,7 +671,6 @@ _OUTPUT_BASE_FILES = {
     'water_velocity_suit': 'water_velocity_suit.tif',
     'water_depth_suit': 'water_depth_suit.tif',
     'population_suitability': 'population_suitability.tif',
-    #'water_stability_suit': 'water_stability_suit.tif',
     'habitat_stability_suit': 'habitat_stability_suit.tif',
     'habitat_suit_weighted_mean': 'habitat_suit_weighted_mean.tif',
     'custom_suit_one': 'custom_suit_one.tif',
@@ -713,56 +718,147 @@ _INTERMEDIATE_BASE_FILES = {
 
 def execute(args):
     """Schistosomiasis.
+        
+        The user can define a function for each suitability metric:
+        'rural_population', 'urbanization_population', 'water_velocity', 
+        'snail_water_temp', 'parasite_water_temp', 'ndvi', and
+        'custom_[one|two|three]'. The functions availabe are 'linear', 
+        'exponential', 'scurve', 'guassian', 'trapezoid'. Each of these
+        functions are defined a set of input parameters. For docstring brevity
+        'rural_population' is used as an example of how the function
+        parameters are expected in 'args' for each function type.
+
+        args['rural_population_linear_param_xa'] (number): First x coordinate
+            of a line defined by two points: (xa, ya), (xz, yz).
+        args['rural_population_linear_param_ya'] (number): First y coordinate
+            of a line defined by two points: (xa, ya), (xz, yz).
+        args['rural_population_linear_param_xz'] (number): Second x
+            coordinate of a line defined by two points: (xa, ya), (xz, yz).
+        args['rural_population_linear_param_yz'] (number): Second y coordinate
+            of a line defined by two points: (xa, ya), (xz, yz).
+        args['rural_population_trapezoid_param_xa'] (number): First x
+            coordinate of trapezoids first line defined by two points:
+            (xa, ya), (xb, yb). Trapezoid is defined by a line followed by a
+            plateau followed by a second line. All y values before xa have value
+            xa and all y values after xz have value yz.
+        args['rural_population_trapezoid_param_ya'] (number): First y coordinate
+            of trapezoids first line defined by two points: (xa, ya), (xb, yb).
+        args['rural_population_trapezoid_param_xb'] (number): Second x
+            coordinate of trapezoids first line defined by two points:
+            (xa, ya), (xb, yb).
+        args['rural_population_trapezoid_param_yb'] (number): Second y
+            coordinate of trapezoids first line defined by two points:
+            (xa, ya), (xb, yb). 
+        args['rural_population_trapezoid_param_xc'] (number): First x coordinate
+            of trapezoids second line defined by two points: (xc, yc), (xz, yz).
+        args['rural_population_trapezoid_param_yc'] (number): First y coordinate
+            of trapezoids second line defined by two points: (xc, yc), (xz, yz).
+        args['rural_population_trapezoid_param_xz'] (number): Second x
+            coordinate of trapezoids second line defined by two points:
+            (xc, yc), (xz, yz).
+        args['rural_population_trapezoid_param_yz'] (number): Second y
+            coordinate of trapezoids second line defined by two points:
+            (xc, yc), (xz, yz).
+        args['rural_population_gaussian_param_mean'] (number): Distribution mean.
+        args['rural_population_gaussian_param_std'] (number): Standard deviation.
+        args['rural_population_gaussian_param_lb'] (number): Lower boundary.
+        args['rural_population_gaussian_param_ub'] (number): Upper boundary.
+        args['rural_population_scurve_param_yin'] (number): Initial y-intercept value.
+        args['rural_population_scurve_param_yfin'] (number): Value of y at tail.
+        args['rural_population_scurve_param_xmed'] (number): X value where
+            curve transitions.
+        args['rural_population_scurve_param_inv_slope'] (number): Defines the
+            sharpness of the curve.
+        args['rural_population_exponential_param_yin'] (number): Initial
+            y-intercept value.
+        args['rural_population_exponential_param_xmed'] (number): First points y
+            coordinate that defines the line.
+        args['rural_population_exponential_param_decay_factor'] (number):
+            Determines rate of decay.
 
     Args:
-        args['workspace_dir'] (string): (required) Output directory for
-            intermediate, temporary and final files.
-        args['results_suffix'] (string): (optional) String to append to any
-            output file.
-        args['n_workers'] (int): (optional) The number of worker processes to
-            use for executing the tasks of this model.  If omitted, computation
-            will take place in the current process.
-
-        args['lulc_raster_path'] (string): (required) A string path to a
-            GDAL-compatible land-use/land-cover raster containing integer
-            landcover codes.  Must be linearly projected in meters.
-
-        args['water_presence_path'] (string): (required) A string path to a
-            GDAL-compatible land-use/land-cover raster containing integer
-            landcover codes.  Must be linearly projected in meters.
-
-        args['calc_ndvi'] = True
-        args['ndvi_func_type'] = 'default'
-        args['ndvi_table_path'] = ''
-        args['ndvi_dry_path'] (string): (required) A string path to a
-            GDAL-compatible land-use/land-cover raster containing integer
-            landcover codes.  Must be linearly projected in meters.
-        args['ndvi_wet_path'] (string): (required) A string path to a
-            GDAL-compatible land-use/land-cover raster containing integer
-            landcover codes.  Must be linearly projected in meters.
-
-        args['calc_temperature'] = True
-        args['temperature_func_type'] = 'linear'
-        args['temperature_table_path'] = os.path.join(procured_data, 'linear-temp.csv')
-        args['water_temp_dry_path'] (string): (required) A string path to a
-            GDAL-compatible land-use/land-cover raster containing integer
-            landcover codes.  Must be linearly projected in meters.
-        args['water_temp_wet_path'] (string): (required) A string path to a
-            GDAL-compatible land-use/land-cover raster containing integer
-            landcover codes.  Must be linearly projected in meters.
-
-        args['population_func_type'] = 'default'
-        args['population_table_path'] = ''
-        args['population_count_path'] (string): (required) A string path to a
-            GDAL-compatible population raster containing people count per
-            square km.
-        
-        args['calc_water_velocity'] = True
-        args['water_velocity_func_type'] = 'default'
-        args['water_velocity_table_path'] = ''
-        args['dem_path'] (string): (required) A string path to a
-            GDAL-compatible population raster containing people count per
-            square km.  Must be linearly projected in meters.
+        args['workspace_dir'] (string): The folder where all the model's output
+            files will be written. If this folder does not exist, it will
+            be created. If data already exists in the folder, it will be
+            overwritten.
+        args['results_suffix'] (string): Suffix that will be appended to
+            all output file names. Useful to differentiate between model runs.
+        args['n_workers'] (number): The n_workers parameter to provide to
+            taskgraph. -1 will cause all jobs to run synchronously.
+            0 will run all jobs in the same process, but scheduling will take
+            place asynchronously. Any other positive integer will cause that
+            many processes to be spawned to execute tasks.
+        args['decay_distance'] (number): Maximum threat distance from water
+            risk.
+        args['aoi_path'] (string): A map of areas over which to aggregate and
+            summarize the final results.
+        args['population_count_path'] (string): A raster representing the
+            number of inhabitants per pixel.
+        args['default_population_suit'] (boolean): Linear increase in risk
+            to rural max and an s-curvedecrease in risk from rural max to
+            urbanization max.
+        args['rural_population_max'] (number): The rural population at which
+            risk is highest.
+        args['urbanization_population_max'] (number): The urbanization
+            population at which risk is 0.
+        args['rural_population_func_type'] (string): The function type
+            to apply to the suitability factor.
+        args['urbanization_population_func_type'] (option_string): The function
+            type to apply to the suitability factor.
+        args['calc_water_depth'] (boolean): Calculate water depth. Using the
+            water presence raster input, uses a water distance from shore as a
+            proxy for depth.
+        args['water_depth_weight'] (ratio): The weight this factor should have
+            on overall risk.
+        args['water_presence_path'] (raster): A raster indicating presence of
+        `water.
+        args['calc_water_velocity'] (boolean): Calculate water velocity.
+        args['water_velocity_func_type'] (option_string): The function type to
+            apply to the suitability factor.
+        args['dem_path'] (raster): Map of elevation above sea level.
+        args['water_velocity_weight'] (ratio): The weight this factor should
+            have on overall risk.
+        args['calc_temperature'] (boolean): Calculate water temperature.
+        args['water_temp_dry_path'] (raster): A raster representing the water
+            temp for dry season.
+        args['water_temp_wet_path'] (raster): A raster representing the water
+            temp for wet season.
+        args['snail_water_temp_func_type'] (option_string): The function type
+            to apply to the suitability factor.
+        args['parasite_water_temp_func_type'] (option_string): The function
+            type to apply to the suitability factor.
+        args['snail_water_temp_dry_weight'] (ratio): The weight this factor
+            should have on overall risk.
+        args['snail_water_temp_wet_weight'] (ratio): The weight this factor
+            should have on overall risk.
+        args['parasite_water_temp_dry_weight'] (ratio): The weight this factor
+            should have on overall risk.
+        args['parasite_water_temp_wet_weight'] (ratio): The weight this factor
+            should have on overall risk.
+        args['calc_ndvi'] (boolean): Calculate NDVI.
+        args['ndvi_func_type'] (option_string): The function type to apply to
+            the suitability factor.
+        args['ndvi_dry_path'] (raster): A raster representing the ndvi for dry season.
+        args['ndvi_dry_weight'] (ratio): The weight this factor should have on overall risk.
+        args['ndvi_wet_path'] (raster): A raster representing the ndvi for wet season.
+        args['ndvi_wet_weight'] (ratio): The weight this factor should have on overall risk.
+        args['calc_custom_one'] (boolean): User defined suitability function.
+        args['custom_one_func_type'] (option_string): The function type to
+            apply to the suitability factor.
+        args['custom_one_path'] (raster): A raster representing the user suitability.
+        args['custom_one_weight'] (ratio): The weight this factor should have
+            on overall risk.
+        args['calc_custom_two'] (boolean): User defined suitability function.
+        args['custom_two_func_type'] (option_string): The function type to apply
+            to the suitability factor.
+        args['custom_two_path'] (raster): A raster representing the user suitability.
+        args['custom_two_weight'] (ratio): The weight this factor should have on
+            overall risk.
+        args['calc_custom_three'] (boolean): User defined suitability function.
+        args['custom_three_func_type'] (option_string): The function type to apply
+            to the suitability factor.
+        args['custom_three_path'] (raster): A raster representing the user suitability.
+        args['custom_three_weight'] (ratio): The weight this factor should have on overall risk.
 
     """
     LOGGER.info(f"Execute {SCHISTO}")
