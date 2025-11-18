@@ -932,6 +932,62 @@ MODEL_SPEC = spec.ModelSpec(
             data_type=float,
             units=None
             ),
+        spec.SingleBandRasterOutput(
+            id='kernel',
+            path='intermediate/kernel.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='unmasked_convolved_hab_risk',
+            path='unmasked_convolved_hab_risk.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='convolved_hab_risk',
+            path='convolved_hab_risk.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='risk_to_pop_abs',
+            path='risk_to_pop_abs.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='risk_to_pop_rel',
+            path='risk_to_pop_rel.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='risk_to_pop_count_abx',
+            path='risk_to_pop_count_abs.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.SingleBandRasterOutput(
+            id='risk_to_pop_count_rel',
+            path='risk_to_pop_count_rel.tif',
+            about="",
+            data_type=float,
+            units=None
+            ),
+        spec.VectorOutput(
+            id='aoi_geojson',
+            path='aoi_geojson.geojson',
+            about="",
+            geometry_types=["POLYGON", "MULTIPOLYGON"],
+            units=None
+            ),
         spec.FileOutput(
             id='custom_suit_one_plot',
             path='custom_suit_one_plot.png',
@@ -952,12 +1008,12 @@ MODEL_SPEC = spec.ModelSpec(
             id='generic_pop_risk_style',
             path='color-profiles/generic_pop_risk_style.txt',
             ),
+        spec.FileOutput(
+            id='nb-json-config',
+            path='nb-json-config.json',
+            ),
     ]
 )
-
-
-_INTERMEDIATE_BASE_FILES = {
-}
 
 
 def execute(args):
@@ -1107,12 +1163,10 @@ def execute(args):
         Returns:
             File registry dictionary mapping MODEL_SPEC output ids to absolute paths
     """
-    LOGGER.info(f"Execute {SCHISTO}")
+    LOGGER.info(f"Execute {MODEL_SPEC.model_title}.")
+    # Preprocess arguments, create a file registry based on MODEL_SPEC.outputs,
+    # and initiate a TaskGraph object for tasks.
     args, file_registry, graph = MODEL_SPEC.setup(args)
-
-    HABITAT_RISK_KEYS = [
-        'water_velocity', 'water_temp_dry', 'ndvi_dry', 'water_temp_wet',
-        'ndvi_wet', 'custom_one', 'custom_two', 'custom_three']
 
     FUNC_TYPES = {
         'trapezoid': _trapezoid_op,
@@ -1147,15 +1201,16 @@ def execute(args):
 
     # Set up dictionary to capture parameters necessary for Jupyter Notebook
     # companion as JSON.
-    nb_json_config_path = os.path.join(output_dir, 'nb-json-config.json')
+    nb_json_config_path = file_registry['nb-json-config']
     nb_json_config = {}
 
     # Dictionary mapping function and parameters to suitability input.
     suit_func_to_use = {}
     
-    # Read func params from table
     # TODO: determine whether to display population, urbanization, or 
     # something else.
+    # Mapping of which suitability factors were selected so we know what to
+    # operate on.
     suitability_keys = [
         ('ndvi', args['calc_ndvi']),
         ('default_population_suit', args['default_population_suit']),
@@ -1168,6 +1223,7 @@ def execute(args):
         ('custom_one', args['calc_custom_one']),
         ('custom_two', args['calc_custom_two']),
         ('custom_three', args['calc_custom_three'])]
+    # Read chosen function parameters
     for suit_key, calc_suit in suitability_keys:
         # Skip non selected suitability metrics
         if not calc_suit:
@@ -1217,42 +1273,29 @@ def execute(args):
                 'func_params':func_params,
             }
 
-    # Get the extents and center of the AOI for notebook companion
-    aoi_info = pygeoprocessing.get_vector_info(args['aoi_path'])
-    # WGS84 WKT
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    wgs84_wkt = srs.ExportToWkt()
-    wgs84_bb = pygeoprocessing.geoprocessing.transform_bounding_box(
-            aoi_info['bounding_box'], aoi_info['projection_wkt'], wgs84_wkt)
-    aoi_center = (
-        ((wgs84_bb[1] + wgs84_bb[3]) / 2), 
-        ((wgs84_bb[0] + wgs84_bb[2]) / 2))
-    nb_json_config['aoi_center'] = aoi_center
-
     ### Align and set up datasets
     # Use the water presence raster for resolution and aligning
     squared_default_pixel_size = _square_off_pixels(
         args['water_presence_path'])
 
-    # Built up a list of provided optional rasters to align
+    # Build up a list of provided optional rasters to align
     raster_input_list = [args['water_presence_path']]
     aligned_input_list = [file_registry['aligned_water_presence']]
     conditional_list = [
-        ('calc_temperature', ['water_temp_dry_path', 'water_temp_wet_path']),
-        ('calc_ndvi', ['ndvi_dry_path', 'ndvi_wet_path']),
-        ('calc_water_velocity', ['dem_path']),
-        ('calc_custom_one', ['custom_one_path']),
-        ('calc_custom_two', ['custom_two_path']),
-        ('calc_custom_three', ['custom_three_path']),
+        (args['calc_temperature'], ['water_temp_dry_path', 'water_temp_wet_path']),
+        (args['calc_ndvi'], ['ndvi_dry_path', 'ndvi_wet_path']),
+        (args['calc_water_velocity'], ['dem_path']),
+        (args['calc_custom_one'], ['custom_one_path']),
+        (args['calc_custom_two'], ['custom_two_path']),
+        (args['calc_custom_three'], ['custom_three_path']),
     ]
     for conditional, key_list in conditional_list:
-        if args[conditional]:
-            temp_paths = [args[path_key] for path_key in key_list]
-            raster_input_list += temp_paths
-            temp_align_paths = [
+        if conditional:
+            temporary_paths = [args[path_key] for path_key in key_list]
+            raster_input_list += temporary_paths
+            temporary_align_paths = [
                 file_registry[f'aligned_{path_key[:-5]}'] for path_key in key_list]
-            aligned_input_list += temp_align_paths 
+            aligned_input_list += temporary_align_paths 
 
     align_task = graph.add_task(
         pygeoprocessing.align_and_resize_raster_stack,
@@ -1300,45 +1343,6 @@ def execute(args):
     habitat_suit_risk_weights = []
     outputs_to_tile = []
 
-    ### Water velocity
-    if args['calc_water_velocity']:
-        # calculate slope
-        slope_task = graph.add_task(
-            func=pygeoprocessing.calculate_slope,
-            args=(
-                (file_registry['aligned_dem'], 1),
-                file_registry['slope']),
-            target_path_list=[file_registry['slope']],
-            dependent_task_list=[align_task],
-            task_name='calculate slope')
-
-        degree_task = graph.add_task(
-            pygeoprocessing.raster_map,
-            kwargs={
-                'op': _degree_op,
-                'rasters': [file_registry['slope']],
-                'target_path': file_registry['degree_slope'],
-                'target_nodata': -9999,
-            },
-            dependent_task_list=[slope_task],
-            target_path_list=[file_registry['degree_slope']],
-            task_name=f'Slope percent to degree')
-
-        # water velocity risk is actually being calculated over the landscape
-        # and not just where water is present. should it be masked to 
-        # water presence?
-        water_vel_task = graph.add_task(
-            suit_func_to_use['water_velocity']['func_name'],
-            args=(file_registry[f'slope'], file_registry['water_velocity_suit']),
-            kwargs=suit_func_to_use['water_velocity']['func_params'],
-            dependent_task_list=[slope_task],
-            target_path_list=[file_registry['water_velocity_suit']],
-            task_name=f'Water Velocity Suit')
-        suitability_tasks.append(water_vel_task)
-        #habitat_suit_risk_paths.append(file_registry['water_velocity_suit'])
-        #habitat_suit_risk_weights.append(float(args['water_velocity_weight']))
-        #outputs_to_tile.append((file_registry['water_velocity_suit'], default_color_path))
-
     ### Population suitability risk
     # Population count to density in square km
     population_suit_sqkm_task = graph.add_task(
@@ -1350,7 +1354,6 @@ def execute(args):
         target_path_list=[file_registry['population_suit_sqkm']],
         dependent_task_list=[population_align_task],
         task_name=f'Population count to density in sqkm.')
-    #suitability_tasks.append(population_suit_sqkm_task)
     outputs_to_tile.append((file_registry['population_suit_sqkm'], default_color_path))
 
     if args['default_population_suit']:
@@ -1404,8 +1407,46 @@ def execute(args):
             population_suitability_path = file_registry['rural_population_suit']
             outputs_to_tile.append((file_registry[f'rural_population_suit'], default_color_path))
 
+    ### Water velocity
+    if args['calc_water_velocity']:
+        # calculate slope
+        slope_task = graph.add_task(
+            func=pygeoprocessing.calculate_slope,
+            args=(
+                (file_registry['aligned_dem'], 1),
+                file_registry['slope']),
+            target_path_list=[file_registry['slope']],
+            dependent_task_list=[align_task],
+            task_name='calculate slope')
 
-    # Temperature and ndvi have different input drivers for wet and dry seasons.
+        degree_task = graph.add_task(
+            pygeoprocessing.raster_map,
+            kwargs={
+                'op': _degree_op,
+                'rasters': [file_registry['slope']],
+                'target_path': file_registry['degree_slope'],
+                'target_nodata': -9999,
+            },
+            dependent_task_list=[slope_task],
+            target_path_list=[file_registry['degree_slope']],
+            task_name=f'Slope percent to degree')
+
+        # water velocity risk is actually being calculated over the landscape
+        # and not just where water is present. should it be masked to 
+        # water presence?
+        water_vel_task = graph.add_task(
+            suit_func_to_use['water_velocity']['func_name'],
+            args=(file_registry[f'slope'], file_registry['water_velocity_suit']),
+            kwargs=suit_func_to_use['water_velocity']['func_params'],
+            dependent_task_list=[slope_task],
+            target_path_list=[file_registry['water_velocity_suit']],
+            task_name=f'Water Velocity Suit')
+        suitability_tasks.append(water_vel_task)
+        habitat_suit_risk_paths.append(file_registry['water_velocity_suit'])
+        habitat_suit_risk_weights.append(float(args['water_velocity_weight']))
+        outputs_to_tile.append((file_registry['water_velocity_suit'], default_color_path))
+
+    # Temperature and ndvi have different functions for wet and dry seasons.
     for season in ["dry", "wet"]:
         ### Water temperature
         if args['calc_temperature']:
@@ -1455,7 +1496,7 @@ def execute(args):
             habitat_suit_risk_weights.append(float(args[f'ndvi_{season}_weight']))
             outputs_to_tile.append((file_registry[f'ndvi_suit_{season}'], default_color_path))
 
-    ### Distance from shore, proxy for depth ###
+    ### Distance from shore, proxy for depth
     if args['calc_water_depth']:
         inverse_water_mask_task = graph.add_task(
             _inverse_water_mask_op,
@@ -1492,19 +1533,8 @@ def execute(args):
         # Using water presence mask out non water pixels, since risk
         # is tied to water here.
         masked_water_depth_suit_path = file_registry['water_depth_suit']
-#        mask_water_depth_suit_task = graph.add_task(
-#            pygeoprocessing.raster_map,
-#            kwargs={
-#                'op': _mask_non_water_values_op,
-#                'rasters': [
-#                    water_depth_suit_path, file_registry['aligned_water_presence']],
-#                'target_path': masked_water_depth_suit_path,
-#            },
-#            dependent_task_list=[water_depth_suit_task],
-#            target_path_list=[masked_water_depth_suit_path],
-#            task_name=f'Mask Water Depth Suit')
         mask_water_depth_suit_task = graph.add_task(
-            _mask_non_water_values_func,
+            _mask_non_water_values,
             kwargs={
                 'input_path': water_depth_suit_path,
                 'mask_path': file_registry['aligned_water_presence'],
@@ -1538,7 +1568,6 @@ def execute(args):
             habitat_suit_risk_weights.append(float(args[f'custom_{custom_index}_weight']))
             outputs_to_tile.append((file_registry[target_key], default_color_path))
 
-
     ### Weighted arithmetic mean of water risks
     weighted_mean_task = graph.add_task(
         _weighted_mean,
@@ -1559,8 +1588,7 @@ def execute(args):
     # TODO: mask out water bodies to nodata and not include in risk
     decay_dist_m = float(args['decay_distance'])
 
-    kernel_path = os.path.join(
-        intermediate_dir, f'kernel{suffix}.tif')
+    kernel_path = file_registry['kernel']
     max_dist_pixels = abs(
         decay_dist_m / squared_default_pixel_size[0])
     kernel_func = pygeoprocessing.kernels.create_distance_decay_kernel
@@ -1582,9 +1610,7 @@ def execute(args):
             f'Create guassian kernel - {decay_dist_m}m'),
         target_path_list=[kernel_path])
 
-    convolved_hab_risk_path = os.path.join(
-        output_dir,
-        f'unmasked_convolved_hab_risk{suffix}.tif')
+    convolved_hab_risk_path = file_registry['unmasked_convolved_hab_risk']
     convolved_hab_risk_task = graph.add_task(
         _convolve_and_set_lower_bound,
         kwargs={
@@ -1599,9 +1625,7 @@ def execute(args):
     )
 
     # mask convolved output by AOI
-    masked_convolved_path = os.path.join(
-        output_dir,
-        f'convolved_hab_risk{suffix}.tif')
+    masked_convolved_path = file_registry['convolved_hab_risk']
     mask_aoi_task = graph.add_task(
         pygeoprocessing.mask_raster,
         kwargs={
@@ -1628,27 +1652,13 @@ def execute(args):
         task_name=f'Normalize convolved risk')
     outputs_to_tile.append((file_registry['normalized_convolved_risk'], default_color_path))
     
-    # TODO: do we want to mask out water presence?
-#    masked_convolved_path = os.path.join(
-#        intermediate_dir,
-#        f'masked_hab_risk_within_{decay_dist_m}{suffix}.tif')
-#    mask_convolve_task = graph.add_task(
-#        _water_mask_op,
-#        kwargs={
-#            'input_path': masked_convolved_path,
-#            'mask_path': file_registry['aligned_water_presence'],
-#            'target_path': masked_convolved_path,
-#        },
-#        task_name=f'Mask convolve hab risk - {decay_dist_m}m',
-#        target_path_list=[masked_convolved_path],
-#        dependent_task_list=[convolved_hab_risk_task])
-
     base_risk_path_list = [masked_convolved_path, file_registry['normalized_convolved_risk']] 
     base_task_list = [mask_aoi_task, normalize_task] 
+    # For normalized and unormalized risk (relative, absolute) calculate risk
+    # to population.
     for calc_type, base_risk_path, base_task in zip(['abs', 'rel'], base_risk_path_list, base_task_list):
         ### Weight convolved risk by population density
-        risk_to_pop_path = os.path.join(
-            output_dir, f'risk_to_pop_{calc_type}{suffix}.tif')
+        risk_to_pop_path = file_registry[f'risk_to_pop_{calc_type}']
         risk_to_pop_task = graph.add_task(
             func=pygeoprocessing.raster_map,
             kwargs={
@@ -1662,16 +1672,8 @@ def execute(args):
             task_name=f'risk to population {calc_type}')
         outputs_to_tile.append((risk_to_pop_path, pop_color_path))
         
-        # water habitat suitability gets at the risk of maximum potential schisto exposure
-        # schisto exposure x urbanization gets at the risk of likelihood of exposure given socioeconomic factors
-        # final risk, is population. Where are there the most people at the highest risk.
-
-        ### Multiply risk_to_pop by people count?
-        # Want to get to how many people are at risk
-        # Multiply by count or by density
-        # TODO: raw and scaled outputs for convolved risk, urbanization x raw convolved, and risk to people
-        risk_to_pop_count_path = os.path.join(
-            output_dir, f'risk_to_pop_count_{calc_type}{suffix}.tif')
+        ### Multiply risk_to_pop by people count
+        risk_to_pop_count_path = file_registry[f'risk_to_pop_count_{calc_type}']
         risk_to_pop_count_task = graph.add_task(
             func=pygeoprocessing.raster_map,
             kwargs={
@@ -1685,18 +1687,27 @@ def execute(args):
             task_name=f'risk to pop_count {calc_type}')
         outputs_to_tile.append((risk_to_pop_count_path, pop_color_path))
 
+    # Get the extents and center of the AOI for notebook companion
+    aoi_info = pygeoprocessing.get_vector_info(args['aoi_path'])
+    # WGS84 WKT
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    wgs84_wkt = srs.ExportToWkt()
+    wgs84_bb = pygeoprocessing.geoprocessing.transform_bounding_box(
+            aoi_info['bounding_box'], aoi_info['projection_wkt'], wgs84_wkt)
+    aoi_center = (
+        ((wgs84_bb[1] + wgs84_bb[3]) / 2), 
+        ((wgs84_bb[0] + wgs84_bb[2]) / 2))
+    nb_json_config['aoi_center'] = aoi_center
+
     # Save AOI as GeoJSON for companion notebook
-    target_srs = osr.SpatialReference()
-    target_srs.ImportFromEPSG(4326)
-    target_wkt = target_srs.ExportToWkt()
-    aoi_geojson_path = os.path.join(
-        output_dir, f'aoi_geojson{suffix}.geojson')
+    aoi_geojson_path = file_registry[f'aoi_geojson']
 
     aoi_geojson_task = graph.add_task(
         func=pygeoprocessing.reproject_vector,
         kwargs={
             'base_vector_path': args['aoi_path'],
-            'target_projection_wkt': target_wkt,
+            'target_projection_wkt': wgs84_wkt,
             'target_path': aoi_geojson_path,
             'driver_name': 'GeoJSON',
             'copy_fields': False,
@@ -1889,19 +1900,23 @@ def _water_mask_op(input_path, mask_path, target_path):
         [(input_path, 1), (mask_path, 1)],
         _mask_op, target_path, gdal.GDT_Float32, input_nodata)
 
-def _mask_non_water_values_op(input_array, water_presence_array):
-    return input_array * water_presence_array
 
-def _mask_non_water_values_func(input_path, mask_path, target_path):
+def _mask_non_water_values(input_path, mask_path, target_path):
+    """Set values to nodata if not in covered by provided mask.
+
+    Args:
+        input_path (string): path to raster to be masked
+        mask_path (string): path to the mask raster where values of 1 indicate
+            valid values to keep
+        target_path (string): path to the output raster
+
+    Returns:
+        Nothing.
     """
-    """
-    LOGGER.debug("MASK_NON_WATER_VALUES_FUNC")
     input_info = pygeoprocessing.get_raster_info(input_path)
     input_nodata = input_info['nodata'][0]
     mask_info = pygeoprocessing.get_raster_info(mask_path)
     mask_nodata = mask_info['nodata'][0]
-    LOGGER.debug(f"input_nodata: {input_nodata}")
-    LOGGER.debug(f"mask_nodata: {mask_nodata}")
 
     def _mask_op(input_array, mask_array):
         output = numpy.full(input_array.shape, input_nodata)
@@ -2232,16 +2247,31 @@ def _population_curve_people_per_sqkm(
         pop_density_path (string): path to population density in people per sq km.
         target_raster_path (string): output path for population risk output
 
+    Returns:
+        Nothing
     """
     population_info = pygeoprocessing.get_raster_info(pop_density_path)
     population_nodata = population_info['nodata'][0]
     
+    # Linear component definition
     slope = (1 - 0) / (rural_population_max - 2)
     intercept = 0 - (slope * 2)
 
     scurve_midpoint = (urbanization_population_max - rural_population_max) / 2
 
     def op(pop_density_array):
+        """Population density risk curve.
+            - 0 if people per sq km < 2
+            - linear if people per sq km >=2 and <=2000
+            - sigmoidal decreasing to 0 if people per sq km >2000 to 200,000
+        Args:
+            pop_density_path (string): path to population density in people per sq km.
+
+        Returns:
+            output (numpy array): population density risk.
+        """
+
+
         output = numpy.full(
             pop_density_array.shape, BYTE_NODATA, dtype=numpy.float32)
 
