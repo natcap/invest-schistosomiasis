@@ -245,6 +245,7 @@ MODEL_SPEC = spec.ModelSpec(
     userguide="https://github.com/natcap/invest-schistosomiasis",
     validate_spatial_overlap=True,
     different_projections_ok=False,
+    module_name=__name__,
     input_field_order=[
         ['workspace_dir', 'results_suffix'],
         ['aoi_path'],
@@ -839,29 +840,8 @@ MODEL_SPEC = spec.ModelSpec(
             units=None
             ),
         spec.SingleBandRasterOutput(
-            id='population_density',
-            path='intermediate/population_density.tif',
-            about="",
-            data_type=float,
-            units=None
-            ),
-        spec.SingleBandRasterOutput(
-            id='population_hectares',
-            path='intermediate/population_hectare.tif',
-            about="",
-            data_type=float,
-            units=None
-            ),
-        spec.SingleBandRasterOutput(
             id='slope',
             path='intermediate/slope.tif',
-            about="",
-            data_type=float,
-            units=None
-            ),
-        spec.SingleBandRasterOutput(
-            id='degree_slope',
-            path='intermediate/degree_slope.tif',
             about="",
             data_type=float,
             units=None
@@ -987,6 +967,10 @@ MODEL_SPEC = spec.ModelSpec(
             about="",
             geometry_types=["POLYGON", "MULTIPOLYGON"],
             units=None
+            ),
+        spec.FileOutput(
+            id='[SUIT_KEY]_[FUNC_NAME]',
+            path='plot-previews/[SUIT_KEY]_[FUNC_NAME].png',
             ),
         spec.FileOutput(
             id='custom_suit_one_plot',
@@ -1178,9 +1162,7 @@ def execute(args):
     DEFAULT_FUNC_TYPES = {
         'temperature': _water_temp_suit,
         'ndvi': _ndvi,
-        #'population': _rural_population_density,
         'default_population_suit': _population_curve_people_per_sqkm,
-        #'urbanization': _urbanization,
         'water_velocity': _water_velocity,
         'water_depth': _water_depth_suit,
         }
@@ -1419,18 +1401,6 @@ def execute(args):
             dependent_task_list=[align_task],
             task_name='calculate slope')
 
-        degree_task = graph.add_task(
-            pygeoprocessing.raster_map,
-            kwargs={
-                'op': _degree_op,
-                'rasters': [file_registry['slope']],
-                'target_path': file_registry['degree_slope'],
-                'target_nodata': -9999,
-            },
-            dependent_task_list=[slope_task],
-            target_path_list=[file_registry['degree_slope']],
-            task_name=f'Slope percent to degree')
-
         # water velocity risk is actually being calculated over the landscape
         # and not just where water is present. should it be masked to 
         # water presence?
@@ -1499,10 +1469,10 @@ def execute(args):
     ### Distance from shore, proxy for depth
     if args['calc_water_depth']:
         inverse_water_mask_task = graph.add_task(
-            _inverse_water_mask_op,
+            _inverse_water_mask,
             kwargs={
-                'input_path': file_registry['aligned_water_presence'],
-                'target_path': file_registry['inverse_water_mask'],
+                'input_raster_path': file_registry['aligned_water_presence'],
+                'target_raster_path': file_registry['inverse_water_mask'],
                 },
             target_path_list=[file_registry['inverse_water_mask']],
             dependent_task_list=[align_task],
@@ -1536,9 +1506,9 @@ def execute(args):
         mask_water_depth_suit_task = graph.add_task(
             _mask_non_water_values,
             kwargs={
-                'input_path': water_depth_suit_path,
-                'mask_path': file_registry['aligned_water_presence'],
-                'target_path': masked_water_depth_suit_path,
+                'input_raster_path': water_depth_suit_path,
+                'mask_raster_path': file_registry['aligned_water_presence'],
+                'target_raster_path': masked_water_depth_suit_path,
             },
             dependent_task_list=[water_depth_suit_task],
             target_path_list=[masked_water_depth_suit_path],
@@ -1572,9 +1542,9 @@ def execute(args):
     weighted_mean_task = graph.add_task(
         _weighted_mean,
         kwargs={
-            'rasters': habitat_suit_risk_paths,
-            'weight_values': habitat_suit_risk_weights,
-            'target_path': file_registry['habitat_suit_weighted_mean'],
+            'raster_list': habitat_suit_risk_paths,
+            'weight_value_list': habitat_suit_risk_weights,
+            'target_raster_path': file_registry['habitat_suit_weighted_mean'],
             'target_nodata': BYTE_NODATA,
             },
         target_path_list=[file_registry['habitat_suit_weighted_mean']],
@@ -1776,7 +1746,9 @@ def execute(args):
 
         results = _generic_func_values(
             user_func, min_max_val, intermediate_dir, func_params)
-        plot_path = os.path.join(func_plot_dir, plot_png_name)
+
+        target_path=file_registry['pollinator_abundance_[SPECIES]_[SEASON]', species, season],
+        plot_path = file_registry['[SUIT_KEY]_[FUNC_NAME]', suit_key, func_type]
         _plotter(
             results[0], results[1], save_path=plot_path,
             label_x=suit_key, label_y=func_type,
@@ -1805,7 +1777,17 @@ def execute(args):
 
 
 def _water_depth_suit(shore_distance_path, target_raster_path):
-    """ """
+    """Distance from shore risk as a proxy for water depth risk.
+
+    Args:
+        shore_distance_path (string): a path to a raster that has distance
+            values from shore in meters. non water pixels should be 0 or NoData.
+        target_raster_path (string): a path to write the resulting raster.
+
+    Returns:
+        Nothing
+    """
+    # Risk function is based on:
     #'y = y1 - (y2 - y1)/(x2-x1)  * x1 + (y2 - y1)/(x2-x1) * x 
     raster_info = pygeoprocessing.get_raster_info(shore_distance_path)
     raster_nodata = raster_info['nodata'][0]
@@ -1827,9 +1809,12 @@ def _water_depth_suit(shore_distance_path, target_raster_path):
     y_intercept_two = yb - (slope_two * xb)
     y_intercept_three = yc - (slope_three * xc)
 
+    # Pixel stack operation computed on the raster blocks
     def op(raster_array):
+        # Define the output array
         output = numpy.full(
             raster_array.shape, FLOAT32_NODATA, dtype=numpy.float32)
+        # Do not compute values where NoData
         valid_pixels = ~pygeoprocessing.array_equals_nodata(raster_array, raster_nodata)
 
         # First line
@@ -1854,13 +1839,20 @@ def _water_depth_suit(shore_distance_path, target_raster_path):
         [(shore_distance_path, 1)], op, target_raster_path, gdal.GDT_Float32,
         FLOAT32_NODATA)
 
-def _inverse_water_mask_op(input_path, target_path):
-    """
+
+def _inverse_water_mask(input_raster_path, target_raster_path):
+    """Set values of 1 to 0 and values of 0 to 1.
+
+    Args:
+        input_raster_path (string): a path to a raster of 1s and 0s.
+        target_raster_path (string): a path to write the resulting raster.
+
+    Returns:
+        Nothing
     """
     input_info = pygeoprocessing.get_raster_info(input_path)
     input_nodata = input_info['nodata'][0]
     input_datatype = input_info['datatype']
-    #numpy_datatype = pygeoprocessing._gdal_to_numpy_type(input_datatype)
 
     def _inverse_op(input_array):
         output = numpy.full(input_array.shape, input_nodata)
@@ -1868,8 +1860,8 @@ def _inverse_water_mask_op(input_path, target_path):
         water_mask = input_array == 1
 
         output[water_mask] = 0
-        #output[nodata_mask] = 1
         output[~water_mask] = 1
+        output[nodata_mask] = input_nodata
 
         return output
     
@@ -1877,38 +1869,15 @@ def _inverse_water_mask_op(input_path, target_path):
         [(input_path, 1)], _inverse_op, target_path,
         input_datatype, input_nodata)
 
-def _water_mask_op(input_path, mask_path, target_path):
-    """
-    """
-    input_info = pygeoprocessing.get_raster_info(input_path)
-    input_nodata = input_info['nodata'][0]
-    mask_info = pygeoprocessing.get_raster_info(mask_path)
-    mask_nodata = mask_info['nodata'][0]
 
-    def _mask_op(input_array, mask_array):
-        output = numpy.full(
-            input_array.shape, input_nodata, dtype=numpy.float32)
-        nodata_mask = pygeoprocessing.array_equals_nodata(input_array, input_nodata)
-
-        mask = mask_array == 1
-        output[mask] = input_nodata
-        output[nodata_mask] = input_nodata
-
-        return output
-    
-    pygeoprocessing.raster_calculator(
-        [(input_path, 1), (mask_path, 1)],
-        _mask_op, target_path, gdal.GDT_Float32, input_nodata)
-
-
-def _mask_non_water_values(input_path, mask_path, target_path):
-    """Set values to nodata if not in covered by provided mask.
+def _mask_non_water_values(input_raster_path, mask_raster_path, target_raster_path):
+    """Set values to nodata if not covered by provided mask.
 
     Args:
-        input_path (string): path to raster to be masked
-        mask_path (string): path to the mask raster where values of 1 indicate
+        input_raster_path (string): path to raster to be masked
+        mask_raster_path (string): path to the mask raster where values of 1 indicate
             valid values to keep
-        target_path (string): path to the output raster
+        target_raster_path (string): path to the output raster
 
     Returns:
         Nothing.
@@ -1933,8 +1902,20 @@ def _mask_non_water_values(input_path, mask_path, target_path):
         [(input_path, 1), (mask_path, 1)],
         _mask_op, target_path, gdal.GDT_Float32, input_nodata)
 
-def _weighted_mean(rasters, weight_values, target_path, target_nodata):
-    """Weighted arithmetic mean wrapper."""
+
+def _weighted_mean(raster_list, weight_value_list, target_raster_path, target_nodata):
+    """Weighted arithmetic mean wrapper.
+
+    Args:
+        raster_list (list of strings): a list of raster paths.
+        weight_value_list (list of floats): a list of weights corresponding
+            to the entries in raster_list.
+        target_raster_path (string): a path to write weighted mean raster.
+        target_nodata (float): value to use as nodata for output.
+
+    Returns:
+        Nothing.
+    """
 
     def _weighted_mean_op(*arrays):
         """
@@ -1949,7 +1930,6 @@ def _weighted_mean(rasters, weight_values, target_path, target_nodata):
         rasters=rasters,
         target_path=target_path,
         target_nodata=target_nodata,
-        #target_dtype=numpy.float32,
     )
 
 
@@ -1974,8 +1954,21 @@ def _normalize_raster(raster_path, target_path):
         target_path=target_path,
     )
 
-def _rural_urbanization_combined(rural_path, urbanization_path, target_raster_path):
-    """Combine the rural and urbanization functions."""
+
+def _rural_urbanization_combined(rural_raster_path, urbanization_raster_path, target_raster_path):
+    """Combine the rural and urbanization functions.
+
+    Takes a waterfall approach writing rural values first and then
+    urbanization values, which could overwrite rural values.
+
+    Args:
+        rural_raster_path (string): a path to the rural raster.
+        urbanization_raster_path (string): a path to the urbanization raster.
+        target_raster_path (string): a path to write output result.
+
+    Returns:
+        Nothing
+    """
     rural_info = pygeoprocessing.get_raster_info(rural_path)
     rural_nodata = rural_info['nodata'][0]
     urbanization_info = pygeoprocessing.get_raster_info(urbanization_path)
@@ -1987,7 +1980,9 @@ def _rural_urbanization_combined(rural_path, urbanization_path, target_raster_pa
         valid_mask = (
                 ~pygeoprocessing.array_equals_nodata(rural_array, rural_nodata) &
                 ~pygeoprocessing.array_equals_nodata(urbanization_array, urbanization_nodata) )
-
+        
+        # We should be able to waterfall these by setting rural values first
+        # and then overwriting any urbanization results.
         output[valid_mask] = rural_array[valid_mask]
         output[valid_mask] = urbanization_array[valid_mask]
 
@@ -1997,10 +1992,21 @@ def _rural_urbanization_combined(rural_path, urbanization_path, target_raster_pa
         [(rural_path, 1), (urbanization_path, 1)],
         _rural_urbanization_op, target_raster_path, gdal.GDT_Float32, BYTE_NODATA)
 
+
 def _multiply_op(array_one, array_two): return numpy.multiply(array_one, array_two)
 
+
 def _tile_raster(raster_path, color_relief_path):
-    """ """
+    """Create XYZ tiles for a given raster.
+
+    Args:
+        raster_path (string): path to a raster to tile.
+        color_relief_path (string): path to a text file with the styling 
+            definition to use.
+
+    Returns:
+        Nothing
+    """
     # Set up directory and paths for outputs
     base_dir = os.path.dirname(raster_path)
     base_name = os.path.splitext(os.path.basename(raster_path))[0]
@@ -2019,56 +2025,7 @@ def _tile_raster(raster_path, color_relief_path):
         '--webviewer=leaflet', rgb_raster_path, tile_dir]
     gdal2tiles.main(tile_cmd)
 
-
-def _degree_op(slope): return numpy.degrees(numpy.arctan(slope / 100.0))
-
-
-def _habitat_stability(water_presence_path, months, target_raster_path):
-    """
-
-    Arguments:
-        water_presence_path (string): 
-        months (float): number of consecutive months for water to be considered habitat.
-        target_raster_path (string): 
-
-
-    """
-    water_presence_info = pygeoprocessing.get_raster_info(water_presence_path)
-    water_presence_nodata = water_presence_info['nodata'][0]
-
-    def op(array):
-        output = numpy.full(
-            array.shape, FLOAT32_NODATA, dtype=numpy.float32)
-        valid_pixels = (
-            ~pygeoprocessing.array_equals_nodata(array, water_presence_nodata))
-
-        # values with 1 month or less surface water presence set to 0
-        lte_one_mask = (array <= 1) & valid_pixels
-        output[lte_one_mask] = 0
-
-        between_mask = (array > 1) & (array <= months) & valid_pixels
-        output[between_mask] = 1.33 * array[between_mask] - 1.33
-
-        gt_mask = (array > months) & valid_pixels
-        output[gt_mask] = 1
-
-        return output
-
-    pygeoprocessing.raster_calculator(
-        [(water_presence_path, 1)],
-        op, target_raster_path, gdal.GDT_Float32, FLOAT32_NODATA)
-
 ### Water temperature functions ###
-
-def _get_temp_op(key):
-    TEMP_OP_MAP = {
-        "sh": _water_temp_op_sh, 
-        "sm": _water_temp_op_sm, 
-        "bg": _water_temp_op_bg, 
-        "bt": _water_temp_op_bt, 
-    }
-    return TEMP_OP_MAP[key]
-
 def _water_temp_op_sm(temp_array, temp_nodata):
     """Water temperature suitability for S. mansoni."""
     #SmWaterTemp <- function(Temp){ifelse(Temp<16, 0,ifelse(Temp<=35, -0.003 * (268/(Temp - 14.2) - 335) + 0.0336538, 0))}
@@ -2087,6 +2044,7 @@ def _water_temp_op_sm(temp_array, temp_nodata):
 
     return output
 
+
 def _water_temp_op_sh(temp_array, temp_nodata):
     """Water temperature suitability for S. haematobium."""
     #ShWaterTemp <- function(Temp){ifelse(Temp<17, 0,ifelse(Temp<=33, -0.006 * (295/(Temp - 15.3) - 174) + 0.056, 0))}
@@ -2103,6 +2061,7 @@ def _water_temp_op_sh(temp_array, temp_nodata):
     output[nodata_pixels] = BYTE_NODATA
 
     return output
+
 
 def _water_temp_op_bt(temp_array, temp_nodata):
     """Water temperature suitability for Bulinus truncatus."""
@@ -2124,6 +2083,7 @@ def _water_temp_op_bt(temp_array, temp_nodata):
 
     return output
 
+
 def _water_temp_op_bg(temp_array, temp_nodata):
     """Water temperature suitability for Biomphalaria."""
     #BglabrataWaterTempNEW <- function(Temp){ifelse(Temp<16, 0,ifelse(Temp<=35, -29.9111 + 5.015e+00 * Temp + -3.107e-01 * Temp^2 +8.560e-03 * Temp^3 + -8.769e-05 * Temp^4, 0))}
@@ -2144,29 +2104,44 @@ def _water_temp_op_bg(temp_array, temp_nodata):
 
     return output
 
+
 def _water_temp_suit(water_temp_path, target_raster_path, op_key):
-    """
+    """Default functions for temperature risk.
 
         Args:
-            water_temp_path (string):
-            target_raster_path (string):
-            op_key (string):
+            water_temp_path (string): path to water temperature raster.
+            target_raster_path (string): path to write output results.
+            op_key (string): string for which default function to use:
+                'sh' | 'sm' | 'bt' | 'bg'
 
         Returns:
+            Nothing.
     """
-    print(f"op_key in func: {op_key}")
+    TEMP_OP_MAP = {
+        "sh": _water_temp_op_sh, 
+        "sm": _water_temp_op_sm, 
+        "bg": _water_temp_op_bg, 
+        "bt": _water_temp_op_bt, 
+    }
     water_temp_info = pygeoprocessing.get_raster_info(water_temp_path)
     water_temp_nodata = water_temp_info['nodata'][0]
-    op = _get_temp_op(op_key)
 
     pygeoprocessing.raster_calculator(
-        [(water_temp_path, 1), (water_temp_nodata, "raw")], op,
+        [(water_temp_path, 1), (water_temp_nodata, "raw")], TEMP_OP_MAP[op_key],
         target_raster_path, gdal.GDT_Float32, BYTE_NODATA)
 
 ### End water temperature functions ###
 
-def _ndvi(ndvi_path, target_raster_path):
-    """ """
+def _ndvi(ndvi_raster_path, target_raster_path):
+    """Suitability risk function for vegetation coverage using NDVI.
+
+    Args:
+        ndvi_raster_path (string): path to ndvi raster.
+        target_raster_path (string): path to write result output.
+
+    Returns:
+        Nothing.
+    """
     #VegCoverage <- function(V){ifelse(V<0,0,ifelse(V<=0.3,3.33*V,1))}
     ndvi_info = pygeoprocessing.get_raster_info(ndvi_path)
     ndvi_nodata = ndvi_info['nodata'][0]
@@ -2188,50 +2163,6 @@ def _ndvi(ndvi_path, target_raster_path):
         [(ndvi_path, 1)], op, target_raster_path, gdal.GDT_Float32,
         BYTE_NODATA)
 
-def _urbanization(pop_density_path, target_raster_path):
-    """
-
-    UrbanRisk <- function(h){ifelse(h<1,1,1/(1+exp((h-3)/0.4)))}
-
-    Args:
-        pop_density_path (string): population density in per hectare
-
-    """
-    population_info = pygeoprocessing.get_raster_info(pop_density_path)
-    population_nodata = population_info['nodata'][0]
-    def op(pop_density_array):
-        output = numpy.full(
-            pop_density_array.shape, BYTE_NODATA, dtype=numpy.float32)
-        valid_pixels = (~pygeoprocessing.array_equals_nodata(pop_density_array, population_nodata))
-
-        output[valid_pixels] = (
-            1 / (1 + numpy.exp((pop_density_array[valid_pixels] - 3) / 0.4)))
-        output[valid_pixels & (pop_density_array < 1)] = 1
-
-        return output
-
-    pygeoprocessing.raster_calculator(
-        [(pop_density_path, 1)], op, target_raster_path, gdal.GDT_Float32,
-        BYTE_NODATA)
-
-def _rural_population_density(population_path, target_raster_path):
-    """ """
-    #RuralDenRisk <- function(h){ifelse(h<1,h,1)}
-    population_info = pygeoprocessing.get_raster_info(population_path)
-    population_nodata = population_info['nodata'][0]
-    def op(population_array):
-        output = numpy.full(
-            population_array.shape, FLOAT32_NODATA, dtype=numpy.float32)
-        valid_pixels = (~pygeoprocessing.array_equals_nodata(population_array, population_nodata))
-
-        output[valid_pixels & (population_array < 1)] = population_array[valid_pixels & (population_array < 1)]
-        output[valid_pixels & (population_array >= 1)] = 1
-
-        return output
-
-    pygeoprocessing.raster_calculator(
-        [(population_path, 1)], op, target_raster_path, gdal.GDT_Float32,
-        FLOAT32_NODATA)
 
 def _population_curve_people_per_sqkm(
         pop_density_path, target_raster_path, rural_population_max,
@@ -2296,8 +2227,17 @@ def _population_curve_people_per_sqkm(
         [(pop_density_path, 1)], op, target_raster_path, gdal.GDT_Float32,
         BYTE_NODATA)
 
-def _water_velocity(slope_path, target_raster_path):
-    """Slope suitability. """
+
+def _water_velocity(slope_raster_path, target_raster_path):
+    """Suitability risk for water velocity based on DEM slope.
+
+    Args:
+        slope_raster_path (string): path to a raster of percent slope.
+        target_raster_path (string): path to write output raster.
+
+    Returns:
+        Nothing
+    """
     #WaterVel <- function(S){ifelse(S<=0.00014,-5714.3 * S + 1,-0.0029*S+0.2)}
     slope_info = pygeoprocessing.get_raster_info(slope_path)
     slope_nodata = slope_info['nodata'][0]
@@ -2324,21 +2264,36 @@ def _water_velocity(slope_path, target_raster_path):
         FLOAT32_NODATA)
 
 
-def _trapezoid_op(raster_path):
-    """ """
+def _trapezoid_op(raster_path, target_raster_path, 
+                  xa=12, ya=0, xb=20, yb=1, xc=30, yc=1, xz=40, yz=0):
+    """Trapezoid function definition.
+    
+    Args:
+        raster_path (string): path to a raster to apply function to
+        target_raster_path (string): path to write output raster.
+        xa (float): first x coordinate of trapezoids first line defined by
+            two points: (xa, ya), (xb, yb)
+        ya (float): first y coordinate of trapezoids first line defined by
+            two points: (xa, ya), (xb, yb)
+        xb (float): second x coordinate of trapezoids first line defined by
+            two points: (xa, ya), (xb, yb)
+        yb (float): second y coordinate of trapezoids first line defined by
+            two points: (xa, ya), (xb, yb)
+        xc (float): first x coordinate of trapezoids second line defined by
+            two points: (xc, yc), (xz, yz)
+        yc (float): first y coordinate of trapezoids second line defined by
+            two points: (xc, yc), (xz, yz)
+        xz (float): second x coordinate of trapezoids second line defined by
+            two points: (xc, yc), (xz, yz)
+        yz (float): second y coordinate of trapezoids second line defined by
+            two points: (xc, yc), (xz, yz)
+
+    Returns:
+        Nothing.
+    """
     #'y = y1 - (y2 - y1)/(x2-x1)  * x1 + (y2 - y1)/(x2-x1) * x 
     raster_info = pygeoprocessing.get_raster_info(raster_path)
     raster_nodata = raster_info['nodata'][0]
-    # Need to define the shape of the trapezoid
-    xa = 12   # Start of first linear equation
-    ya = 0    # Value of left initial plateau
-    xz = 40   # End of second linear equation
-    yz = 0    # Value of trailing plateau (should be same as initial)
-
-    xb = 20   # End of first linear equation (start of middle plateau)
-    yb = 1    # Value of middle plateau
-    xc = 30   # Start of second linear equation (end of middle plateau)
-    yc = 1    # Value of middle plateau (same as yb)
 
     slope_inc = (yb - ya) / (xb - xa)
     slope_dec = (yc - yz) / (xc - xz)
@@ -2374,7 +2329,19 @@ def _trapezoid_op(raster_path):
 
 
 def _gaussian_op(raster_path, target_raster_path, mean=0, std=1, lb=0, ub=40):
-    """ """
+    """Gaussian function definition.
+    
+    Args:
+        raster_path (string): path to a raster to apply function to
+        target_raster_path (string): path to write resulting raster.
+        mean (float): mean for gaussian distribution
+        std (float): standard deviation for gaussian distribution
+        lb (float): lower bound where values become zero
+        ub (float): upper bound where values become zero
+
+    Returns:
+        Nothing.
+    """
     raster_info = pygeoprocessing.get_raster_info(raster_path)
     raster_nodata = raster_info['nodata'][0]
 
@@ -2398,7 +2365,19 @@ def _gaussian_op(raster_path, target_raster_path, mean=0, std=1, lb=0, ub=40):
 
 def _sshape_op(
         raster_path, target_raster_path, yin=1, yfin=0, xmed=15, inv_slope=3):
-    """ """
+    """S-curve, sigmoidal function definition.
+    
+    Args:
+        raster_path (string): path to a raster to apply function to
+        target_raster_path (string): path to write resulting raster.
+        yin (float): initial y-intercept value
+        yfin (float): value of y at tail
+        xmed (float): x value where curve transitions
+        inv_slope (float): defines the sharpness of the curve
+
+    Returns:
+        Nothing.
+    """
     #y = yin + (yfin - yin)/(1 + exp(-(x - xmed)/invSlope)))
     raster_info = pygeoprocessing.get_raster_info(raster_path)
     raster_nodata = raster_info['nodata'][0]
@@ -2420,7 +2399,19 @@ def _sshape_op(
 def _exponential_decay_op(
         raster_path, target_raster_path, yin=1, xmed=1, decay_factor=0.982,
         max_dist=1000):
-    """ """
+    """Exponential decay function definition.
+    
+    Args:
+        raster_path (string): path to a raster to apply function to
+        target_raster_path (string): path to write resulting raster.
+        yin (float): initial y-intercept value
+        xmed (float): the first points y coordinate that defines the line
+        decay_factor (float): determines rate of decay
+        max_dist (float): x value where y decays to 0
+
+    Returns:
+        Nothing.
+    """
     raster_info = pygeoprocessing.get_raster_info(raster_path)
     raster_nodata = raster_info['nodata'][0]
 
@@ -2441,7 +2432,19 @@ def _exponential_decay_op(
 
 
 def _linear_op(raster_path, target_raster_path, xa, ya, xz, yz):
-    """ """
+    """Linear function definition.
+    
+    Args:
+        raster_path (string): path to a raster to apply function to
+        target_raster_path (string): path to write resulting raster.
+        xa (float): first x coordinate of a line defined by two points: (xa, ya), (xz, yz).
+        ya (float): first y coordinate of a line defined by two points: (xa, ya), (xz, yz).
+        xz (float): second x coordinate of a line defined by two points: (xa, ya), (xz, yz).
+        yz (float): second y coordinate of a line defined by two points: (xa, ya), (xz, yz).
+
+    Returns:
+        Nothing.
+    """
     raster_info = pygeoprocessing.get_raster_info(raster_path)
     raster_nodata = raster_info['nodata'][0]
 
@@ -2478,14 +2481,14 @@ def _generic_func_values(func_op, xrange, working_dir, kwargs):
     we create one with the values of ``xrange`` to pass in.
 
     Args:
-        func_op (string): 
-        xrange (string): 
-        working_dir (string): 
-        kwargs (dict): 
+        func_op (string): the function to pass a created raster path to
+        xrange (string): the range of values to use in creating raster
+        working_dir (string): directory to save temporary files
+        kwargs (dict): additional parameters to be passed along to func_op 
 
     Returns:
-        values_x (numpy array): 
-        numpy_values_y (numpy array): 
+        values_x (numpy array): numpy array of x values
+        numpy_values_y (numpy array): numpy array of func_op(x) values
     """
     # Generic spatial reference
     srs = osr.SpatialReference()
@@ -2519,7 +2522,21 @@ def _generic_func_values(func_op, xrange, working_dir, kwargs):
 
 def _plotter(values_x, values_y, save_path=None, label_x=None, label_y=None,
              title=None, xticks=None, yticks=None):
-    """ """
+    """Generic a plot of values.
+    
+    Args:
+        values_x (numpy array): numpy array of x values to plot
+        values_y (numpy array): numpy array of y values to plot
+        save_path (string): path to save the plot as a png. optional, default=None.
+        label_x (string): text for labelling the x-axis. optional, default=None.
+        label_y (string): text for labelling the y-axis. optional, default=None.
+        title (string): text for plot title. optional, default=None.
+        xticks (): not currently implemented
+        yticks ():  not currently implemented
+
+    Returns:
+        Nothing
+    """
     flattened_x_array = values_x.flatten()
     flattened_y_array = values_y.flatten()
     xmin=numpy.min(flattened_x_array)
@@ -2540,7 +2557,6 @@ def _plotter(values_x, values_y, save_path=None, label_x=None, label_y=None,
     plt.xlabel(label_x)
     plt.ylabel(label_y)
     plt.title(title)
-    #plt.show()
     if save_path:
         plt.savefig(save_path)
     else:
@@ -2701,77 +2717,6 @@ def _resample_population_raster(
 
     shutil.rmtree(tmp_working_dir, ignore_errors=True)
 
-def _convert_to_from_density(source_raster_path, target_raster_path,
-        direction='to_density'):
-    """Convert a raster to/from counts/pixel and counts/unit area.
-
-    Args:
-        source_raster_path (string): The path to a raster containing units that
-            need to be converted.
-        target_raster_path (string): The path to where the target raster with
-            converted units should be stored.
-        direction='to_density' (string): The direction of unit conversion. If
-            'to_density', then the units of ``source_raster_path`` must be in
-            counts per pixel and will be converted to counts per square meter.
-            If 'from_density', then the units of ``source_raster_path`` must be
-            in counts per square meter and will be converted to counts per
-            pixel.
-
-    Returns:
-        ``None``
-    """
-    LOGGER.info(f'Converting {direction} {source_raster_path} --> '
-                f'{target_raster_path}')
-    source_raster_info = pygeoprocessing.get_raster_info(source_raster_path)
-    source_nodata = source_raster_info['nodata'][0]
-
-    # Calculate the per-pixel area based on the latitude.
-    _, miny, _, maxy = source_raster_info['bounding_box']
-    pixel_area_in_m2_by_latitude = (
-        geoprocessing._create_latitude_m2_area_column(
-            miny, maxy, source_raster_info['raster_size'][1]))
-
-    def _convert(array, pixel_area):
-        out_array = numpy.full(array.shape, FLOAT32_NODATA, dtype=numpy.float32)
-
-        valid_mask = slice(None)
-        if source_nodata is not None:
-            valid_mask = ~pygeoprocessing.array_equals_nodata(array, source_nodata)
-
-        if direction == 'to_density':
-            out_array[valid_mask] = array[valid_mask] / pixel_area[valid_mask]
-        elif direction == 'from_density':
-            out_array[valid_mask] = array[valid_mask] * pixel_area[valid_mask]
-        else:
-            raise AssertionError(f'Invalid direction: {direction}')
-        return out_array
-
-    pygeoprocessing.raster_calculator(
-        [(source_raster_path, 1), pixel_area_in_m2_by_latitude],
-        _convert, target_raster_path, gdal.GDT_Float32, FLOAT32_NODATA)
-
-def _population_count_to_hectare(population_count_path, target_path):
-    """Population count to population density in hectares.
-
-    Args:
-        population_count_path (str): path to population count raster
-        target_path (str): path to save density raster
-
-    Returns:
-        Nothing.
-    """
-    population_raster_info = pygeoprocessing.get_raster_info(population_count_path)
-    population_pixel_area = abs(numpy.multiply(*population_raster_info['pixel_size']))
-
-    # 10,000 square meters equals 1 hectares.
-    kwargs={
-        'op': lambda x: (x / population_pixel_area) * 10000,  
-        'rasters': [population_count_path],
-        'target_path': target_path,
-        'target_nodata': -1,
-    }
-
-    pygeoprocessing.raster_map(**kwargs)
 
 def _population_count_to_square_km(population_count_path, target_path):
     """Population count to population density in square km.
@@ -2796,18 +2741,6 @@ def _population_count_to_square_km(population_count_path, target_path):
 
     pygeoprocessing.raster_map(**kwargs)
 
-def _population_density_to_hectares(population_density_path, target_path):
-    """Population density in square km to population density in hectares."""
-    population_raster_info = pygeoprocessing.get_raster_info(population_density_path)
-
-    kwargs={
-        'op': lambda x: x/100,
-        'rasters': [population_density_path],
-        'target_path': target_path,
-        'target_nodata': -1,
-    }
-
-    pygeoprocessing.raster_map(**kwargs)
 
 def _kernel_gaussian(distance, max_distance):
     """Create a gaussian kernel.
@@ -2874,6 +2807,7 @@ def _convolve_and_set_lower_bound(
 
     target_band = None
     target_raster = None
+
 
 @validation.invest_validator
 def validate(args, limit_to=None):
