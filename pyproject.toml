@@ -46,7 +46,7 @@ api_version = "v1"
 package_name = "invest_schistosomiasis"
 notebook_path = "notebooks/ipyleaflet.ipynb"
 conda_dependencies = [
-	"python<3.14.0",
-	"gdal<3.11",
+	"python==3.13",
+	"gdal!=3.11",
 	"geotiff>=1.7.3"
 ]
