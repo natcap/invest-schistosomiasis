@@ -1734,7 +1734,7 @@ def execute(args):
             func_type = args[f'{suit_key}_func_type']
         
         # Use input raster range to plot against function
-        plot_png_name = f"{suit_key}-{func_type}.png"
+        plot_png_name = f"{suit_key}_{func_type}.png"
         plot_raster = gdal.OpenEx(raster_path)
         plot_band = plot_raster.GetRasterBand(1)
         min_max_val = plot_band.ComputeRasterMinMax(True)
