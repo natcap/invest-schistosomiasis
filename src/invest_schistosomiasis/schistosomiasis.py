@@ -270,13 +270,13 @@ MODEL_SPEC = spec.ModelSpec(
         ["calc_water_velocity", "water_velocity_func_type",
          "dem_path", "water_velocity_weight",
          {"Water velocity parameters": [key.id for key in FUNC_PARAMS['water_velocity']]}],
-        ["calc_custom_one", "custom_one_func_type",
+        ["calc_custom_one", "custom_one_name", "custom_one_func_type",
          "custom_one_path", "custom_one_weight",
          {"Input parameters": [key.id for key in FUNC_PARAMS_USER('one')]}],
-        ["calc_custom_two", "custom_two_func_type",
+        ["calc_custom_two", "custom_two_name", "custom_two_func_type",
          "custom_two_path", "custom_two_weight",
          {"Input parameters": [key.id for key in FUNC_PARAMS_USER('two')]}],
-        ["calc_custom_three", "custom_three_func_type",
+        ["calc_custom_three", "custom_three_name", "custom_three_func_type",
          "custom_three_path", "custom_three_weight",
          {"Input parameters": [key.id for key in FUNC_PARAMS_USER('three')]}],
     ],
@@ -537,6 +537,12 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
+        spec.StringInput(
+            id="custom_one_name",
+            required='calc_custom_one',
+            about="Name of the user defined input.",
+            name="Name of additional input"
+        ),
         spec.OptionStringInput(
             id="custom_one_func_type",
             name="Suitability function type",
@@ -568,6 +574,12 @@ MODEL_SPEC = spec.ModelSpec(
             about="User defined suitability function.",
             name="Additional user defined suitability input."
         ),
+        spec.StringInput(
+            id="custom_two_name",
+            required='calc_custom_two',
+            about="Name of the user defined input.",
+            name="Name of additional input"
+        ),
         spec.OptionStringInput(
             id="custom_two_func_type",
             name="Suitability function type",
@@ -598,6 +610,12 @@ MODEL_SPEC = spec.ModelSpec(
             required=False,
             about="User defined suitability function.",
             name="Additional user defined suitability input."
+        ),
+        spec.StringInput(
+            id="custom_three_name",
+            required='calc_custom_three',
+            about="Name of the user defined input.",
+            name="Name of additional input"
         ),
         spec.OptionStringInput(
             id="custom_three_func_type",
@@ -697,22 +715,8 @@ MODEL_SPEC = spec.ModelSpec(
             units=None
             ),
         spec.SingleBandRasterOutput(
-            id='custom_suit_one',
-            path='custom_suit_one.tif',
-            about="",
-            data_type=float,
-            units=None
-            ),
-        spec.SingleBandRasterOutput(
-            id='custom_suit_two',
-            path='custom_suit_two.tif',
-            about="",
-            data_type=float,
-            units=None
-            ),
-        spec.SingleBandRasterOutput(
-            id='custom_suit_three',
-            path='custom_suit_three.tif',
+            id='custom_suit_[CUSTOM_INDEX]_[CUSTOM_NAME]',
+            path='custom_suit_[CUSTOM_INDEX]_[CUSTOM_NAME].tif',
             about="",
             data_type=float,
             units=None
@@ -812,22 +816,22 @@ MODEL_SPEC = spec.ModelSpec(
             units=None
             ),
         spec.SingleBandRasterOutput(
-            id='aligned_custom_one',
-            path='intermediate/aligned_custom_one.tif',
+            id='aligned_custom_one_[CUSTOM_NAME]',
+            path='intermediate/aligned_custom_one_[CUSTOM_NAME].tif',
             about="",
             data_type=float,
             units=None
             ),
         spec.SingleBandRasterOutput(
-            id='aligned_custom_two',
-            path='intermediate/aligned_custom_two.tif',
+            id='aligned_custom_two_[CUSTOM_NAME]',
+            path='intermediate/aligned_custom_two_[CUSTOM_NAME].tif',
             about="",
             data_type=float,
             units=None
             ),
         spec.SingleBandRasterOutput(
-            id='aligned_custom_three',
-            path='intermediate/aligned_custom_three.tif',
+            id='aligned_custom_three_[CUSTOM_NAME]',
+            path='intermediate/aligned_custom_three_[CUSTOM_NAME].tif',
             about="",
             data_type=float,
             units=None
@@ -881,24 +885,12 @@ MODEL_SPEC = spec.ModelSpec(
             data_type=float,
             units=None
             ),
-        spec.FileOutput(
-            id='water_velocity_suit_plot',
-            path='water_vel_suit_plot.png',
-            ),
-        spec.FileOutput(
-            id='water_temp_suit_dry_plot',
-            path='water_temp_suit_dry_plot.png',
-            ),
         spec.SingleBandRasterOutput(
             id='unmasked_water_depth_suit',
             path='intermediate/unmasked_water_depth_suit.tif',
             about="",
             data_type=float,
             units=None
-            ),
-        spec.FileOutput(
-            id='water_depth_suit_plot',
-            path='water_depth_suit_plot.png',
             ),
         spec.SingleBandRasterOutput(
             id='rural_population_suit',
@@ -974,18 +966,6 @@ MODEL_SPEC = spec.ModelSpec(
         spec.FileOutput(
             id='[SUIT_KEY]_[FUNC_NAME]',
             path='plot-previews/[SUIT_KEY]_[FUNC_NAME].png',
-            ),
-        spec.FileOutput(
-            id='custom_suit_one_plot',
-            path='custom_suit_one_plot.png',
-            ),
-        spec.FileOutput(
-            id='custom_suit_two_plot',
-            path='custom_suit_two_plot.png',
-            ),
-        spec.FileOutput(
-            id='custom_suit_three_plot',
-            path='custom_suit_three_plot.png',
             ),
         spec.FileOutput(
             id='generic_risk_style',
@@ -1130,18 +1110,21 @@ def execute(args):
         args['ndvi_wet_path'] (string): A raster representing the ndvi for wet season.
         args['ndvi_wet_weight'] (float): The weight this factor should have on overall risk.
         args['calc_custom_one'] (boolean): User defined suitability function.
+        args['custom_one_name'] (string): Name of the user defined input.
         args['custom_one_func_type'] (string): The function type to
             apply to the suitability factor.
         args['custom_one_path'] (string): A raster representing the user suitability.
         args['custom_one_weight'] (float): The weight this factor should have
             on overall risk.
         args['calc_custom_two'] (boolean): User defined suitability function.
+        args['custom_two_name'] (string): Name of the user defined input.
         args['custom_two_func_type'] (string): The function type to apply
             to the suitability factor.
         args['custom_two_path'] (string): A raster representing the user suitability.
         args['custom_two_weight'] (float): The weight this factor should have on
             overall risk.
         args['calc_custom_three'] (boolean): User defined suitability function.
+        args['custom_three_name'] (string): Name of the user defined input.
         args['custom_three_func_type'] (string): The function type to apply
             to the suitability factor.
         args['custom_three_path'] (string): A raster representing the user suitability.
@@ -1274,8 +1257,14 @@ def execute(args):
         if conditional:
             temporary_paths = [args[path_key] for path_key in key_list]
             raster_input_list += temporary_paths
-            temporary_align_paths = [
-                file_registry[f'aligned_{path_key[:-5]}'] for path_key in key_list]
+            if 'custom' in key_list[0]:
+                custom_id = key_list[0][:-5]
+                custom_name = args[f'{custom_id}_name']
+                temporary_align_paths = [
+                    file_registry[f'aligned_{custom_id}_[CUSTOM_NAME]', custom_name]]
+            else:
+                temporary_align_paths = [
+                    file_registry[f'aligned_{path_key[:-5]}'] for path_key in key_list]
             aligned_input_list += temporary_align_paths 
 
     align_task = graph.add_task(
@@ -1521,21 +1510,26 @@ def execute(args):
     ### Custom functions provided by user
     for custom_index in ['one', 'two', 'three']:
         if args[f'calc_custom_{custom_index}']:
-            target_key = f'custom_suit_{custom_index}'
+            user_input_name = args[f"custom_{custom_index}_name"]
+            target_reg_key = 'custom_suit_[CUSTOM_INDEX]_[CUSTOM_NAME]'
+            target_reg_path = file_registry[
+                    target_reg_key, custom_index, user_input_name]
             custom_task = graph.add_task(
                 suit_func_to_use[f'custom_{custom_index}']['func_name'],
                 args=(
-                    file_registry[f'aligned_custom_{custom_index}'],
-                    file_registry[target_key],
+                    file_registry[
+                        f'aligned_custom_{custom_index}_[CUSTOM_NAME]',
+                        user_input_name],
+                    target_reg_path
                 ),
                 kwargs=suit_func_to_use[f'custom_{custom_index}']['func_params'],
                 dependent_task_list=[align_task],
-                target_path_list=[file_registry[target_key]],
+                target_path_list=[target_reg_path],
                 task_name=f'Custom Suit for {custom_index}')
             suitability_tasks.append(custom_task)
-            habitat_suit_risk_paths.append(file_registry[target_key])
+            habitat_suit_risk_paths.append(target_reg_path)
             habitat_suit_risk_weights.append(float(args[f'custom_{custom_index}_weight']))
-            outputs_to_tile.append((file_registry[target_key], default_color_path))
+            outputs_to_tile.append((target_reg_path, default_color_path))
 
     ### Weighted arithmetic mean of water risks
     weighted_mean_task = graph.add_task(
@@ -1733,6 +1727,10 @@ def execute(args):
         else:
             func_type = args[f'{suit_key}_func_type']
         
+        # Use custom input names
+        if 'custom' in suit_key:
+            suit_key = args[f'{suit_key}_name']
+
         # Use input raster range to plot against function
         plot_png_name = f"{suit_key}_{func_type}.png"
         plot_raster = gdal.OpenEx(raster_path)
