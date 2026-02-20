@@ -42,9 +42,16 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 FLOAT32_NODATA = float(numpy.finfo(numpy.float32).min)
 BYTE_NODATA = 255
 
+# Titles for grouping tiled layers in Jupyter Notebook companion app
+WATER_RISK = "Water Risk"
+CUSTOM_RISK = "Custom Risk"
+POPULATION_RISK = "Population Risk"
+ABSOLUTE_RISK = "Absolute Risk"
+RELATIVE_RISK = "Relative Risk"
+
 # Coloramps for styling output tiles for companion notebook
 # Blues
-POP_RISK = {
+POP_COLOR_RAMP = {
     '0%': '247 251 255',
     '20%': '209 226 243',
     '40%': '154 200 224',
@@ -54,7 +61,7 @@ POP_RISK = {
     'nv': '1 1 1 0'
 }
 # Red organge yellow
-GENERIC_RISK = {
+GENERIC_COLOR_RAMP = {
     '0%': '255 255 178',
     '25%': '254 204 92',
     '50%': '253 141 60',
@@ -1153,12 +1160,12 @@ def execute(args):
         'water_depth': _water_depth_suit,
         }
 
-    # Write color profiles to text file
+    # Write color profiles to text file for tiling
     default_color_path = file_registry['generic_risk_style']
     pop_color_path = file_registry['generic_pop_risk_style']
     color_path_list = [default_color_path, pop_color_path]
     for color_profile, profile_path in zip(
-            [GENERIC_RISK, POP_RISK], color_path_list):
+            [GENERIC_COLOR_RAMP, POP_COLOR_RAMP], color_path_list):
         with open(profile_path, 'w') as f:
             for break_key, rgb_val in color_profile.items():
                 f.write(break_key + ' ' + rgb_val + '\n')
@@ -1166,7 +1173,7 @@ def execute(args):
     # Set up dictionary to capture parameters necessary for Jupyter Notebook
     # companion as JSON.
     nb_json_config_path = file_registry['nb-json-config']
-    nb_json_config = {}
+    nb_json_config = {'layers': {}}
 
     # Dictionary mapping function and parameters to suitability input.
     suit_func_to_use = {}
@@ -1324,7 +1331,17 @@ def execute(args):
         target_path_list=[file_registry['population_suit_sqkm']],
         dependent_task_list=[population_align_task],
         task_name=f'Population count to density in sqkm.')
-    outputs_to_tile.append((file_registry['population_suit_sqkm'], default_color_path))
+    outputs_to_tile.append(
+            (file_registry['population_suit_sqkm'], pop_color_path))
+    # If we're tiling a layer then we likely want to view it in the Jupyter
+    # Notebook app, so add needed info to the config
+    base_name = os.path.splitext(os.path.basename(
+                    file_registry['population_suit_sqkm']))[0]
+    nb_json_config['layers'][base_name] = {
+            'tile_dir': base_name,
+            'color_profile_hex': _convert_rgb_profile_to_hex(POP_COLOR_RAMP),
+            'display_name': 'Population density',
+            'group_name': POPULATION_RISK}
 
     if args['default_population_suit']:
         population_suitability_path = file_registry['population_suitability']
@@ -1339,7 +1356,15 @@ def execute(args):
             dependent_task_list=[population_suit_sqkm_task],
             target_path_list=[file_registry['population_suitability']],
             task_name=f'Default population Suit')
-        outputs_to_tile.append((file_registry[f'population_suitability'], default_color_path))
+        outputs_to_tile.append(
+                (file_registry[f'population_suitability'], pop_color_path))
+        base_name = os.path.splitext(os.path.basename(
+                        file_registry['population_suitability']))[0]
+        nb_json_config['layers'][base_name] = {
+                'tile_dir': base_name,
+                'color_profile_hex': _convert_rgb_profile_to_hex(POP_COLOR_RAMP),
+                'display_name': 'Population suitability',
+                'group_name': POPULATION_RISK}
     else:
         rural_pop_task = graph.add_task(
             suit_func_to_use['rural_population']['func_name'],
@@ -1372,10 +1397,26 @@ def execute(args):
                 dependent_task_list=[rural_pop_task, urbanization_task],
                 target_path_list=[file_registry['population_suitability']],
                 task_name=f'Rural Urbanization Suit')
-            outputs_to_tile.append((file_registry[f'population_suitability'], default_color_path))
+            outputs_to_tile.append(
+                    (file_registry[f'population_suitability'], pop_color_path))
+            base_name = os.path.splitext(os.path.basename(
+                            file_registry['population_suitability']))[0]
+            nb_json_config['layers'][base_name] = {
+                    'tile_dir': base_name,
+                    'color_profile_hex': _convert_rgb_profile_to_hex(POP_COLOR_RAMP),
+                    'display_name': 'Population suitability',
+                    'group_name': POPULATION_RISK}
         else:
             population_suitability_path = file_registry['rural_population_suit']
-            outputs_to_tile.append((file_registry[f'rural_population_suit'], default_color_path))
+            outputs_to_tile.append(
+                    (file_registry[f'rural_population_suit'], pop_color_path))
+            base_name = os.path.splitext(os.path.basename(
+                            file_registry['rural_population_suit']))[0]
+            nb_json_config['layers'][base_name] = {
+                    'tile_dir': base_name,
+                    'color_profile_hex': _convert_rgb_profile_to_hex(POP_COLOR_RAMP),
+                    'display_name': 'Population suitability',
+                    'group_name': POPULATION_RISK}
 
     ### Water velocity
     if args['calc_water_velocity']:
@@ -1402,7 +1443,15 @@ def execute(args):
         suitability_tasks.append(water_vel_task)
         habitat_suit_risk_paths.append(file_registry['water_velocity_suit'])
         habitat_suit_risk_weights.append(float(args['water_velocity_weight']))
-        outputs_to_tile.append((file_registry['water_velocity_suit'], default_color_path))
+        outputs_to_tile.append(
+                (file_registry['water_velocity_suit'], default_color_path))
+        base_name = os.path.splitext(os.path.basename(
+                        file_registry['water_velocity_suit']))[0]
+        nb_json_config['layers'][base_name] = {
+                'tile_dir': base_name,
+                'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+                'display_name': 'Water velocity suitability',
+                'group_name': WATER_RISK}
 
     # Temperature and ndvi have different functions for wet and dry seasons.
     for season in ["dry", "wet"]:
@@ -1435,7 +1484,16 @@ def execute(args):
                 suitability_tasks.append(water_temp_task)
                 habitat_suit_risk_paths.append(file_registry[f'{temp_key}_suit_{season}'])
                 habitat_suit_risk_weights.append(float(args[f'{temp_key}_{season}_weight']))
-                outputs_to_tile.append((file_registry[f'{temp_key}_suit_{season}'], default_color_path))
+                outputs_to_tile.append(
+                        (file_registry[f'{temp_key}_suit_{season}'],
+                         default_color_path))
+                base_name = os.path.splitext(os.path.basename(
+                                file_registry[f'{temp_key}_suit_{season}']))[0]
+                nb_json_config['layers'][base_name] = {
+                        'tile_dir': base_name,
+                        'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+                        'display_name': f'{temp_key} {season} suitability',
+                        'group_name': WATER_RISK}
 
         ### Vegetation coverage (NDVI)
         if args['calc_ndvi']:
@@ -1452,7 +1510,15 @@ def execute(args):
             suitability_tasks.append(ndvi_task)
             habitat_suit_risk_paths.append(file_registry[f'ndvi_suit_{season}'])
             habitat_suit_risk_weights.append(float(args[f'ndvi_{season}_weight']))
-            outputs_to_tile.append((file_registry[f'ndvi_suit_{season}'], default_color_path))
+            outputs_to_tile.append(
+                    (file_registry[f'ndvi_suit_{season}'], default_color_path))
+            base_name = os.path.splitext(os.path.basename(
+                            file_registry[f'ndvi_suit_{season}']))[0]
+            nb_json_config['layers'][base_name] = {
+                    'tile_dir': base_name,
+                    'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+                    'display_name': f'NDVI {season} suitability',
+                    'group_name': WATER_RISK}
 
     ### Distance from shore, proxy for depth
     if args['calc_water_depth']:
@@ -1505,7 +1571,15 @@ def execute(args):
         suitability_tasks.append(mask_water_depth_suit_task)
         habitat_suit_risk_paths.append(masked_water_depth_suit_path)
         habitat_suit_risk_weights.append(float(args['water_depth_weight']))
-        outputs_to_tile.append((masked_water_depth_suit_path, default_color_path))
+        outputs_to_tile.append(
+                (masked_water_depth_suit_path, default_color_path))
+        base_name = os.path.splitext(os.path.basename(
+                        masked_water_depth_suit_path))[0]
+        nb_json_config['layers'][base_name] = {
+                'tile_dir': base_name,
+                'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+                'display_name': 'Distance from shore suitability',
+                'group_name': WATER_RISK}
 
     ### Custom functions provided by user
     for custom_index in ['one', 'two', 'three']:
@@ -1528,8 +1602,16 @@ def execute(args):
                 task_name=f'Custom Suit for {custom_index}')
             suitability_tasks.append(custom_task)
             habitat_suit_risk_paths.append(target_reg_path)
-            habitat_suit_risk_weights.append(float(args[f'custom_{custom_index}_weight']))
+            habitat_suit_risk_weights.append(
+                    float(args[f'custom_{custom_index}_weight']))
             outputs_to_tile.append((target_reg_path, default_color_path))
+            base_name = os.path.splitext(os.path.basename(
+                            target_reg_path))[0]
+            nb_json_config['layers'][base_name] = {
+                    'tile_dir': base_name,
+                    'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+                    'display_name': user_input_name,
+                    'group_name': CUSTOM_RISK}
 
     ### Weighted arithmetic mean of water risks
     weighted_mean_task = graph.add_task(
@@ -1543,7 +1625,16 @@ def execute(args):
         target_path_list=[file_registry['habitat_suit_weighted_mean']],
         dependent_task_list=suitability_tasks,
         task_name='weighted mean')
-    outputs_to_tile.append((file_registry[f'habitat_suit_weighted_mean'], default_color_path))
+    outputs_to_tile.append(
+            (file_registry[f'habitat_suit_weighted_mean'],
+             default_color_path))
+    base_name = os.path.splitext(os.path.basename(
+                    file_registry[f'habitat_suit_weighted_mean']))[0]
+    nb_json_config['layers'][base_name] = {
+            'tile_dir': base_name,
+            'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+            'display_name': 'Habitat suitability weighted mean',
+            'group_name': WATER_RISK}
 
 
     ### Convolve habitat suit weighted mean over land
@@ -1600,7 +1691,15 @@ def execute(args):
         dependent_task_list=[convolved_hab_risk_task],
         task_name='Mask convolved raster by AOI'
     )
-    outputs_to_tile.append((masked_convolved_path, default_color_path))
+    outputs_to_tile.append(
+            (masked_convolved_path, default_color_path))
+    base_name = os.path.splitext(os.path.basename(
+                    masked_convolved_path))[0]
+    nb_json_config['layers'][base_name] = {
+            'tile_dir': base_name,
+            'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+            'display_name': 'Convolved habitat risk',
+            'group_name': ABSOLUTE_RISK}
         
     # min-max normalize the absolute risk convolution.
     # min is known to be 0, so we don't misrepresent positive risk values.
@@ -1613,13 +1712,26 @@ def execute(args):
         dependent_task_list=[mask_aoi_task],
         target_path_list=[file_registry['normalized_convolved_risk']],
         task_name=f'Normalize convolved risk')
-    outputs_to_tile.append((file_registry['normalized_convolved_risk'], default_color_path))
+    outputs_to_tile.append(
+            (file_registry['normalized_convolved_risk'], default_color_path))
+    base_name = os.path.splitext(os.path.basename(
+                    file_registry['normalized_convolved_risk']))[0]
+    nb_json_config['layers'][base_name] = {
+            'tile_dir': base_name,
+            'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+            'display_name': 'Normalized convolved habitat risk',
+            'group_name': RELATIVE_RISK}
     
     base_risk_path_list = [masked_convolved_path, file_registry['normalized_convolved_risk']] 
     base_task_list = [mask_aoi_task, normalize_task] 
     # For normalized and unormalized risk (relative, absolute) calculate risk
     # to population.
     for calc_type, base_risk_path, base_task in zip(['abs', 'rel'], base_risk_path_list, base_task_list):
+        if calc_type == 'abs':
+            tile_category = ABSOLUTE_RISK
+        else:
+            tile_category = RELATIVE_RISK
+
         ### Weight convolved risk by population density
         risk_to_pop_path = file_registry[f'risk_to_pop_{calc_type}']
         risk_to_pop_task = graph.add_task(
@@ -1634,6 +1746,13 @@ def execute(args):
             dependent_task_list=[base_task, population_suit_sqkm_task],
             task_name=f'risk to population {calc_type}')
         outputs_to_tile.append((risk_to_pop_path, pop_color_path))
+        base_name = os.path.splitext(os.path.basename(
+                        risk_to_pop_path))[0]
+        nb_json_config['layers'][base_name] = {
+                'tile_dir': base_name,
+                'color_profile_hex': _convert_rgb_profile_to_hex(POP_COLOR_RAMP),
+                'display_name': f'Risk to population ({calc_type})',
+                'group_name': tile_category}
         
         ### Multiply risk_to_pop by people count
         risk_to_pop_count_path = file_registry[f'risk_to_pop_count_{calc_type}']
@@ -1649,6 +1768,13 @@ def execute(args):
             dependent_task_list=[risk_to_pop_task],
             task_name=f'risk to pop_count {calc_type}')
         outputs_to_tile.append((risk_to_pop_count_path, pop_color_path))
+        base_name = os.path.splitext(os.path.basename(
+                        risk_to_pop_count_path))[0]
+        nb_json_config['layers'][base_name] = {
+                'tile_dir': base_name,
+                'color_profile_hex': _convert_rgb_profile_to_hex(POP_COLOR_RAMP),
+                'display_name': f'Risk to population count ({calc_type})',
+                'group_name': tile_category}
 
     # Get the extents and center of the AOI for notebook companion
     aoi_info = pygeoprocessing.get_vector_info(args['aoi_path'])
@@ -1678,13 +1804,6 @@ def execute(args):
         target_path_list=[aoi_geojson_path],
         task_name=f'reproject aoi to geojson')
     nb_json_config['aoi_geojson'] = os.path.basename(aoi_geojson_path)
-
-    # For the notebook to be able to display only the currently selected
-    # risk layers over the http server, write to json config
-    nb_json_config['layers'] = []
-    for raster_path, _ in outputs_to_tile:
-        base_name = os.path.splitext(os.path.basename(raster_path))[0]
-        nb_json_config['layers'].append(base_name)
 
     graph.close()
     graph.join()
@@ -1765,9 +1884,8 @@ def execute(args):
     #    },
     #    task_name=f'Tile temperature',
     #    dependent_task_list=suitability_tasks)
-    for raster_path, color_path in outputs_to_tile:
-        _tile_raster(raster_path, color_path)
-
+    for output_tuple in outputs_to_tile:
+        _tile_raster(output_tuple[0], output_tuple[1])
 
     return file_registry.registry
     LOGGER.info("Model completed")
@@ -2805,6 +2923,36 @@ def _convolve_and_set_lower_bound(
     target_band = None
     target_raster = None
 
+def _convert_rgb_profile_to_hex(color_profile):
+    """Convert a GRASS r.colors profile to hex.
+
+    Takes a percentage to rgb mapping color profile and converts to a 
+    float to hex profile.
+
+    Args:
+        color_profile (dict): A dictionary of percent keys to rgb strings
+            separated by spaces
+                {
+                    '0%': '247 251 255',
+                    '20%': '209 226 243',
+                    '40%': '154 200 224',
+                    '60%': '82 157 204',
+                    '80%': '29 108 177',
+                    '100%': '8 48 107',
+                    'nv': '1 1 1 0'
+                }
+    Returns:
+        A dictionary of floats mapped to hex.
+    """
+    float_to_hex = {}
+    for percent_key, rgb_val in color_profile.items():
+        if percent_key == 'nv':
+            continue
+        float_key = str(float(percent_key[:-1])/100)
+        r,g,b = [int(c) for c in rgb_val.split()]
+        hex_string = f'#{r:02x}{g:02x}{b:02x}'
+        float_to_hex[float_key] = hex_string
+    return float_to_hex
 
 @validation.invest_validator
 def validate(args, limit_to=None):
