@@ -297,13 +297,15 @@ MODEL_SPEC = spec.ModelSpec(
             about="Maximum threat distance from water risk.",
             units=u.meter,
         ),
-        spec.AOI,
+        spec.AOI.model_copy(update=dict(projected=True)),
         spec.SingleBandRasterInput(
             id='population_count_path',
             name='population raster',
             about="A raster representing the number of inhabitants per pixel.",
             data_type=float,
-            units=u.meter,
+            units=None,
+            projected=True,
+            projection_units=u.meter,
         ),
         spec.BooleanInput(
             id="default_population_suit",
@@ -377,7 +379,8 @@ MODEL_SPEC = spec.ModelSpec(
             name='water presence',
             about="A raster indicating presence of water.",
             data_type=int,
-            units=None,
+            units=None, 
+            projected=True
         ),
         spec.BooleanInput(
             id="calc_water_velocity",
@@ -396,7 +399,7 @@ MODEL_SPEC = spec.ModelSpec(
                 *SUITABILITY_FUNCTION_OPTIONS]
         ),
         *FUNC_PARAMS['water_velocity'],
-        spec.DEM.model_copy(update=dict(
+        spec.PROJECTED_DEM.model_copy(update=dict(
             required="calc_water_velocity",
             allowed="calc_water_velocity")
         ),
