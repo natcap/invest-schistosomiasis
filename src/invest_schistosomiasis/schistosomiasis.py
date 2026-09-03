@@ -21,7 +21,6 @@ import pygeoprocessing.kernels
 import taskgraph
 from osgeo import gdal
 from osgeo import osr
-from osgeo_utils import gdal2tiles
 
 import matplotlib.pyplot as plt
 
@@ -261,31 +260,40 @@ MODEL_SPEC = spec.ModelSpec(
         ["population_count_path", "default_population_suit",
          "rural_population_max", "urbanization_population_max",
          "rural_population_func_type",
-         {"Rural parameters": [key.id for key in FUNC_PARAMS['rural_population']]},
+         #{"Rural parameters": [key.id for key in FUNC_PARAMS['rural_population']]},
+         *[key.id for key in FUNC_PARAMS['rural_population']],
          "urbanization_population_func_type",
-         {"Urbanization parameters": [key.id for key in FUNC_PARAMS['urbanization_population']]}],
+         #{"Urbanization parameters": [key.id for key in FUNC_PARAMS['urbanization_population']]}],
+         *[key.id for key in FUNC_PARAMS['urbanization_population']]],
         ["calc_water_depth", "water_depth_weight"],
         ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
         "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
-         {"Snail temperature parameters": [key.id for key in FUNC_PARAMS['snail_water_temp']]},
+         #{"Snail temperature parameters": [key.id for key in FUNC_PARAMS['snail_water_temp']]},
+         *[key.id for key in FUNC_PARAMS['snail_water_temp']],
         "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
-         {"Parasite temperature parameters": [key.id for key in FUNC_PARAMS['parasite_water_temp']]}],
+         #{"Parasite temperature parameters": [key.id for key in FUNC_PARAMS['parasite_water_temp']]}],
+         *[key.id for key in FUNC_PARAMS['parasite_water_temp']]],
         ["calc_ndvi", "ndvi_func_type",
          "ndvi_dry_path", "ndvi_dry_weight",
          "ndvi_wet_path", "ndvi_wet_weight",
-         {"NDVI parameters": [key.id for key in FUNC_PARAMS['ndvi']]}],
+         #{"NDVI parameters": [key.id for key in FUNC_PARAMS['ndvi']]}],
+         *[key.id for key in FUNC_PARAMS['ndvi']]],
         ["calc_water_velocity", "water_velocity_func_type",
          "dem_path", "water_velocity_weight",
-         {"Water velocity parameters": [key.id for key in FUNC_PARAMS['water_velocity']]}],
+         #{"Water velocity parameters": [key.id for key in FUNC_PARAMS['water_velocity']]}],
+         *[key.id for key in FUNC_PARAMS['water_velocity']]],
         ["calc_custom_one", "custom_one_name", "custom_one_func_type",
          "custom_one_path", "custom_one_weight",
-         {"Input parameters": [key.id for key in FUNC_PARAMS_USER('one')]}],
+         #{"Input parameters": [key.id for key in FUNC_PARAMS_USER('one')]}],
+         *[key.id for key in FUNC_PARAMS_USER('one')]],
         ["calc_custom_two", "custom_two_name", "custom_two_func_type",
          "custom_two_path", "custom_two_weight",
-         {"Input parameters": [key.id for key in FUNC_PARAMS_USER('two')]}],
+         #{"Input parameters": [key.id for key in FUNC_PARAMS_USER('two')]}],
+         *[key.id for key in FUNC_PARAMS_USER('two')]],
         ["calc_custom_three", "custom_three_name", "custom_three_func_type",
          "custom_three_path", "custom_three_weight",
-         {"Input parameters": [key.id for key in FUNC_PARAMS_USER('three')]}],
+         #{"Input parameters": [key.id for key in FUNC_PARAMS_USER('three')]}],
+         *[key.id for key in FUNC_PARAMS_USER('three')]],
     ],
     inputs=[
         spec.WORKSPACE,
@@ -1878,20 +1886,9 @@ def execute(args):
     with open(nb_json_config_path, 'w', encoding='utf-8') as f:
         json.dump(nb_json_config, f, ensure_ascii=False, indent=4)
 
-    ### Tile outputs
-    #tile_task = graph.add_task(
-    #    _tile_raster,
-    #    kwargs={
-    #        'raster_path': file_registry['water_temp_suit_wet_sm'],
-    #        'color_relief_path': color_relief_path,
-    #    },
-    #    task_name=f'Tile temperature',
-    #    dependent_task_list=suitability_tasks)
-    for output_tuple in outputs_to_tile:
-        _tile_raster(output_tuple[0], output_tuple[1])
 
-    return file_registry.registry
     LOGGER.info("Model completed")
+    return file_registry.registry
 
 
 def _water_depth_suit(shore_distance_path, target_raster_path):
@@ -2113,35 +2110,6 @@ def _rural_urbanization_combined(rural_raster_path, urbanization_raster_path, ta
 
 def _multiply_op(array_one, array_two): return numpy.multiply(array_one, array_two)
 
-
-def _tile_raster(raster_path, color_relief_path):
-    """Create XYZ tiles for a given raster.
-
-    Args:
-        raster_path (string): path to a raster to tile.
-        color_relief_path (string): path to a text file with the styling 
-            definition to use.
-
-    Returns:
-        Nothing
-    """
-    # Set up directory and paths for outputs
-    base_dir = os.path.dirname(raster_path)
-    base_name = os.path.splitext(os.path.basename(raster_path))[0]
-    rgb_raster_path = os.path.join(base_dir, f'{base_name}_rgb.tif')
-    tile_dir = os.path.join(base_dir, f'{base_name}_tiles')
-
-    if not os.path.isdir(tile_dir):
-        os.mkdir(tile_dir)
-    LOGGER.info(f'Creating stylized raster for {base_name}')
-    gdaldem_cmd = f'gdaldem color-relief -q -alpha -co COMPRESS=LZW {raster_path} {color_relief_path} {rgb_raster_path}'
-    subprocess.run(gdaldem_cmd, shell=True)
-    LOGGER.info(f'Creating tiles for {base_name}')
-    tile_cmd = [
-        '--verbose', '--xyz', '--resampling=near', '--quiet',
-        '--resume', '--zoom=1-12', '--process=4', 
-        '--webviewer=leaflet', rgb_raster_path, tile_dir]
-    gdal2tiles.main(tile_cmd)
 
 ### Water temperature functions ###
 def _water_temp_op_sm(temp_array, temp_nodata):
