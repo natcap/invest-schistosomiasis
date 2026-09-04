@@ -12,7 +12,6 @@ import logging
 import os
 import tempfile
 import shutil
-import subprocess
 import json
 
 import numpy
@@ -143,28 +142,28 @@ FUNC_KEYS = list(SPEC_FUNC_DEFINITIONS.keys())
 # each suitability input type. Keys should match repsective MODEL_SPEC 
 # suitability type input ids.
 FUNC_PARAMS = {
-    'rural_population': [
-        spec.NumberInput(
-            id=f'rural_population_{func_name}_param_{param_name}',
-            name=f'{param_name}',
-            about=param_desc['about'],
-            required=f"default_population_suit == False and rural_population_func_type == '{func_name}'",
-            allowed=f"default_population_suit == False and rural_population_func_type == '{func_name}'",
-            units=None
-        )
-        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
-    ],
-    'urbanization_population': [
-        spec.NumberInput(
-            id=f'urbanization_population_{func_name}_param_{param_name}',
-            name=f'{param_name}',
-            about=param_desc['about'],
-            required=f"default_population_suit == False and urbanization_population_func_type == '{func_name}'",
-            allowed=f"default_population_suit == False and urbanization_population_func_type == '{func_name}'",
-            units=None
-        )
-        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
-    ],
+#    'rural_population': [
+#        spec.NumberInput(
+#            id=f'rural_population_{func_name}_param_{param_name}',
+#            name=f'{param_name}',
+#            about=param_desc['about'],
+#            required=f"default_population_suit == False and rural_population_func_type == '{func_name}'",
+#            allowed=f"default_population_suit == False and rural_population_func_type == '{func_name}'",
+#            units=None
+#        )
+#        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
+#    ],
+#    'urbanization_population': [
+#        spec.NumberInput(
+#            id=f'urbanization_population_{func_name}_param_{param_name}',
+#            name=f'{param_name}',
+#            about=param_desc['about'],
+#            required=f"default_population_suit == False and urbanization_population_func_type == '{func_name}'",
+#            allowed=f"default_population_suit == False and urbanization_population_func_type == '{func_name}'",
+#            units=None
+#        )
+#        for func_name in FUNC_KEYS for param_name, param_desc in SPEC_FUNC_DEFINITIONS[func_name].items()
+#    ],
     'water_velocity': [
         spec.NumberInput(
             id=f'water_velocity_{func_name}_param_{param_name}',
@@ -257,43 +256,47 @@ MODEL_SPEC = spec.ModelSpec(
         ['aoi_path'],
         ['decay_distance'],
         ["water_presence_path"],
-        ["population_count_path", "default_population_suit",
+        ["population_count_path", #"default_population_suit",
          "rural_population_max", "urbanization_population_max",
-         "rural_population_func_type",
+         #"rural_population_func_type",
          #{"Rural parameters": [key.id for key in FUNC_PARAMS['rural_population']]},
-         *[key.id for key in FUNC_PARAMS['rural_population']],
-         "urbanization_population_func_type",
+         #*[key.id for key in FUNC_PARAMS['rural_population']],
+         #"urbanization_population_func_type",
          #{"Urbanization parameters": [key.id for key in FUNC_PARAMS['urbanization_population']]}],
-         *[key.id for key in FUNC_PARAMS['urbanization_population']]],
+         #*[key.id for key in FUNC_PARAMS['urbanization_population']]],
+        ],
         ["calc_water_depth", "water_depth_weight"],
         ["calc_temperature", "water_temp_dry_path", "water_temp_wet_path",
         "snail_water_temp_dry_weight", "snail_water_temp_wet_weight", "snail_water_temp_func_type", 
          #{"Snail temperature parameters": [key.id for key in FUNC_PARAMS['snail_water_temp']]},
-         *[key.id for key in FUNC_PARAMS['snail_water_temp']],
+         #*[key.id for key in FUNC_PARAMS['snail_water_temp']],
         "parasite_water_temp_dry_weight", "parasite_water_temp_wet_weight", "parasite_water_temp_func_type", 
          #{"Parasite temperature parameters": [key.id for key in FUNC_PARAMS['parasite_water_temp']]}],
-         *[key.id for key in FUNC_PARAMS['parasite_water_temp']]],
+         #*[key.id for key in FUNC_PARAMS['parasite_water_temp']]],
+        ],
         ["calc_ndvi", "ndvi_func_type",
          "ndvi_dry_path", "ndvi_dry_weight",
          "ndvi_wet_path", "ndvi_wet_weight",
          #{"NDVI parameters": [key.id for key in FUNC_PARAMS['ndvi']]}],
-         *[key.id for key in FUNC_PARAMS['ndvi']]],
+         #*[key.id for key in FUNC_PARAMS['ndvi']]],
+        ],
         ["calc_water_velocity", "water_velocity_func_type",
          "dem_path", "water_velocity_weight",
          #{"Water velocity parameters": [key.id for key in FUNC_PARAMS['water_velocity']]}],
-         *[key.id for key in FUNC_PARAMS['water_velocity']]],
-        ["calc_custom_one", "custom_one_name", "custom_one_func_type",
-         "custom_one_path", "custom_one_weight",
+         #*[key.id for key in FUNC_PARAMS['water_velocity']]],
+        ],
+        #["calc_custom_one", "custom_one_name", "custom_one_func_type",
+        # "custom_one_path", "custom_one_weight",
          #{"Input parameters": [key.id for key in FUNC_PARAMS_USER('one')]}],
-         *[key.id for key in FUNC_PARAMS_USER('one')]],
-        ["calc_custom_two", "custom_two_name", "custom_two_func_type",
-         "custom_two_path", "custom_two_weight",
+         # *[key.id for key in FUNC_PARAMS_USER('one')]],
+        #["calc_custom_two", "custom_two_name", "custom_two_func_type",
+         #"custom_two_path", "custom_two_weight",
          #{"Input parameters": [key.id for key in FUNC_PARAMS_USER('two')]}],
-         *[key.id for key in FUNC_PARAMS_USER('two')]],
-        ["calc_custom_three", "custom_three_name", "custom_three_func_type",
-         "custom_three_path", "custom_three_weight",
+         #*[key.id for key in FUNC_PARAMS_USER('two')]],
+        #["calc_custom_three", "custom_three_name", "custom_three_func_type",
+         #"custom_three_path", "custom_three_weight",
          #{"Input parameters": [key.id for key in FUNC_PARAMS_USER('three')]}],
-         *[key.id for key in FUNC_PARAMS_USER('three')]],
+         #*[key.id for key in FUNC_PARAMS_USER('three')]],
     ],
     inputs=[
         spec.WORKSPACE,
@@ -311,62 +314,66 @@ MODEL_SPEC = spec.ModelSpec(
             name='population raster',
             about="A raster representing the number of inhabitants per pixel.",
             data_type=float,
-            units=None,
+            units=u.count,
             projected=True,
             projection_units=u.meter,
         ),
-        spec.BooleanInput(
-            id="default_population_suit",
-            name="Use default poppulation suitability.",
-            about=("Linear increase in risk to rural max and an s-curve"
-                   "decrease in risk from rural max to urbanization max."),
-            required=False,
-        ),
+        #spec.BooleanInput(
+        #    id="default_population_suit",
+        #    name="Use default poppulation suitability.",
+        #    about=("Linear increase in risk to rural max and an s-curve"
+        #           "decrease in risk from rural max to urbanization max."),
+        #    required=False,
+        #),
         spec.NumberInput(
             id="rural_population_max",
-            name="Rural population max",
+            name="Rural population density max",
             about="The rural population at which risk is highest.",
-            required="default_population_suit",
-            allowed="default_population_suit",
-            units=None,
+            #required="default_population_suit",
+            #allowed="default_population_suit",
+            required=True,
+            allowed=True,
+            units=u.people / u.kilometer**2,
         ),
         spec.NumberInput(
             id="urbanization_population_max",
-            name="Urbanization population max",
+            name="Urbanization population density max",
             about="The urbanization population at which risk is 0.",
-            required="default_population_suit",
-            allowed="default_population_suit",
-            units=None,
+            #required="default_population_suit",
+            #allowed="default_population_suit",
+            required=True,
+            allowed=True,
+            units=u.people / u.kilometer**2,
         ),
-        *FUNC_PARAMS['rural_population'],
-        spec.OptionStringInput(
-            id="rural_population_func_type",
-            name="Rural Suitability function type",
-            about="The function type to apply to the suitability factor.",
-            required="default_population_suit == False",
-            allowed="default_population_suit == False",
-            options=[
-                spec.Option(key="linear", display_name="Linear"),
-                spec.Option(key="exponential", display_name="exponential"),
-                spec.Option(key="scurve", display_name="scurve"),
-                spec.Option(key="trapezoid", display_name="trapezoid"),
-                spec.Option(key="gaussian", display_name="gaussian"),
-            ]),
-        *FUNC_PARAMS['urbanization_population'],
-        spec.OptionStringInput(
-            id="urbanization_population_func_type",
-            name="Urbanization Suitability function type",
-            about="The function type to apply to the suitability factor.",
-            required="False",
-            allowed="default_population_suit == False",
-            options=[
-                spec.Option(key="None", display_name="[Select option]"),
-                spec.Option(key="linear", display_name="Linear"),
-                spec.Option(key="exponential", display_name="exponential"),
-                spec.Option(key="scurve", display_name="scurve"),
-                spec.Option(key="trapezoid", display_name="trapezoid"),
-                spec.Option(key="gaussian", display_name="gaussian"),
-            ]),
+        #*FUNC_PARAMS['rural_population'],
+        #spec.OptionStringInput(
+#            id="rural_population_func_type",
+#            name="Rural Suitability function type",
+#            about="The function type to apply to the suitability factor.",
+#            required="default_population_suit == False",
+#            allowed="default_population_suit == False",
+#            options=[
+#                spec.Option(key="linear", display_name="Linear"),
+#                spec.Option(key="exponential", display_name="exponential"),
+#                spec.Option(key="scurve", display_name="scurve"),
+#                spec.Option(key="trapezoid", display_name="trapezoid"),
+#                spec.Option(key="gaussian", display_name="gaussian"),
+#            ]),
+#        *FUNC_PARAMS['urbanization_population'],
+#        spec.OptionStringInput(
+#            id="urbanization_population_func_type",
+#            name="Urbanization Suitability function type",
+#            about="The function type to apply to the suitability factor.",
+#            required="False",
+#            allowed="default_population_suit == False",
+#            options=[
+#                spec.Option(key="None", display_name="[Select option]"),
+#                spec.Option(key="linear", display_name="Linear"),
+#                spec.Option(key="exponential", display_name="exponential"),
+#                spec.Option(key="scurve", display_name="scurve"),
+#                spec.Option(key="trapezoid", display_name="trapezoid"),
+#                spec.Option(key="gaussian", display_name="gaussian"),
+#            ]),
         spec.BooleanInput(
             id="calc_water_depth",
             name="calculate water depth",
@@ -404,9 +411,10 @@ MODEL_SPEC = spec.ModelSpec(
             allowed="calc_water_velocity",
             options=[
                 spec.Option(key="default", display_name="Default used in paper."),
-                *SUITABILITY_FUNCTION_OPTIONS]
+                #*SUITABILITY_FUNCTION_OPTIONS]
+                ]
         ),
-        *FUNC_PARAMS['water_velocity'],
+        #*FUNC_PARAMS['water_velocity'],
         spec.PROJECTED_DEM.model_copy(update=dict(
             required="calc_water_velocity",
             allowed="calc_water_velocity")
@@ -455,9 +463,10 @@ MODEL_SPEC = spec.ModelSpec(
             options=[
                 spec.Option(key="bt", display_name="Default: Bulinus truncatus."),
                 spec.Option(key="bg", display_name="Default: Biomphalaria."),
-                *SUITABILITY_FUNCTION_OPTIONS]
+                #*SUITABILITY_FUNCTION_OPTIONS]
+                ]
         ),
-        *FUNC_PARAMS['snail_water_temp'],
+        #*FUNC_PARAMS['snail_water_temp'],
         spec.OptionStringInput(
             id=f'parasite_water_temp_func_type',
             name="Parasite suitability function type",
@@ -467,9 +476,10 @@ MODEL_SPEC = spec.ModelSpec(
             options=[
                 spec.Option(key="sh", display_name="Default: S. haematobium."),
                 spec.Option(key="sm", display_name="Default: S. mansoni."),
-                *SUITABILITY_FUNCTION_OPTIONS]
+                #*SUITABILITY_FUNCTION_OPTIONS]
+                ]
         ),
-        *FUNC_PARAMS['parasite_water_temp'],
+        #*FUNC_PARAMS['parasite_water_temp'],
         spec.RatioInput(
             id="snail_water_temp_dry_weight",
             about="The weight this factor should have on overall risk.",
@@ -512,9 +522,10 @@ MODEL_SPEC = spec.ModelSpec(
             allowed="calc_ndvi",
             options=[
                 spec.Option(key="default", display_name="Default used in paper."),
-                *SUITABILITY_FUNCTION_OPTIONS]
+                #*SUITABILITY_FUNCTION_OPTIONS]
+                ]
         ),
-        *FUNC_PARAMS['ndvi'],
+        #*FUNC_PARAMS['ndvi'],
         spec.SingleBandRasterInput(
             id="ndvi_dry_path",
             name='ndvi dry raster',
@@ -549,117 +560,117 @@ MODEL_SPEC = spec.ModelSpec(
             required="calc_ndvi",
             allowed="calc_ndvi"
         ),
-        spec.BooleanInput(
-            id="calc_custom_one",
-            required=False,
-            about="User defined suitability function.",
-            name="Additional user defined suitability input."
-        ),
-        spec.StringInput(
-            id="custom_one_name",
-            required='calc_custom_one',
-            about="Name of the user defined input.",
-            name="Name of additional input"
-        ),
-        spec.OptionStringInput(
-            id="custom_one_func_type",
-            name="Suitability function type",
-            about="The function type to apply to the suitability factor.",
-            required="calc_custom_one",
-            allowed="calc_custom_one",
-            options=SUITABILITY_FUNCTION_OPTIONS),
-        *FUNC_PARAMS_USER('one'),
-        spec.SingleBandRasterInput(
-            id='custom_one_path',
-            name='custom raster',
-            units=None,
-            projected=True,
-            projection_units=u.meter,
-            about="A raster representing the user suitability.",
-            required="calc_custom_one",
-            allowed="calc_custom_one"
-        ),
-        spec.RatioInput(
-            id="custom_one_weight",
-            about="The weight this factor should have on overall risk.",
-            name="User risk weight",
-            required="calc_custom_one",
-            allowed="calc_custom_one"
-        ),
-        spec.BooleanInput(
-            id="calc_custom_two",
-            required=False,
-            about="User defined suitability function.",
-            name="Additional user defined suitability input."
-        ),
-        spec.StringInput(
-            id="custom_two_name",
-            required='calc_custom_two',
-            about="Name of the user defined input.",
-            name="Name of additional input"
-        ),
-        spec.OptionStringInput(
-            id="custom_two_func_type",
-            name="Suitability function type",
-            about="The function type to apply to the suitability factor.",
-            required="calc_custom_two",
-            allowed="calc_custom_two",
-            options=SUITABILITY_FUNCTION_OPTIONS),
-        *FUNC_PARAMS_USER('two'),
-        spec.SingleBandRasterInput(
-            id='custom_two_path',
-            name='custom raster',
-            units=None,
-            projected=True,
-            projection_units=u.meter,
-            about="A raster representing the user suitability.",
-            required="calc_custom_two",
-            allowed="calc_custom_two"
-        ),
-        spec.RatioInput(
-            id="custom_two_weight",
-            about="The weight this factor should have on overall risk.",
-            name="User risk weight",
-            required="calc_custom_two",
-            allowed="calc_custom_two"
-        ),
-        spec.BooleanInput(
-            id="calc_custom_three",
-            required=False,
-            about="User defined suitability function.",
-            name="Additional user defined suitability input."
-        ),
-        spec.StringInput(
-            id="custom_three_name",
-            required='calc_custom_three',
-            about="Name of the user defined input.",
-            name="Name of additional input"
-        ),
-        spec.OptionStringInput(
-            id="custom_three_func_type",
-            name="Suitability function type",
-            about="The function type to apply to the suitability factor.",
-            required="calc_custom_three",
-            allowed="calc_custom_three",
-            options=SUITABILITY_FUNCTION_OPTIONS),
-        *FUNC_PARAMS_USER('three'),
-        spec.SingleBandRasterInput(
-            id='custom_three_path',
-            name='custom raster',
-            units=None,
-            projected=True,
-            projection_units=u.meter,
-            about="A raster representing the user suitability.",
-            required="calc_custom_three",
-            allowed="calc_custom_three"
-        ),
-        spec.RatioInput(
-            id="custom_three_weight",
-            about="The weight this factor should have on overall risk.",
-            name="User risk weight",
-            required="calc_custom_three",
-            allowed="calc_custom_three"
-        ),
+#        spec.BooleanInput(
+#            id="calc_custom_one",
+#            required=False,
+#            about="User defined suitability function.",
+#            name="Additional user defined suitability input."
+#        ),
+#        spec.StringInput(
+#            id="custom_one_name",
+#            required='calc_custom_one',
+#            about="Name of the user defined input.",
+#            name="Name of additional input"
+#        ),
+#        spec.OptionStringInput(
+#            id="custom_one_func_type",
+#            name="Suitability function type",
+#            about="The function type to apply to the suitability factor.",
+#            required="calc_custom_one",
+#            allowed="calc_custom_one",
+#            options=SUITABILITY_FUNCTION_OPTIONS),
+#        *FUNC_PARAMS_USER('one'),
+#        spec.SingleBandRasterInput(
+#            id='custom_one_path',
+#            name='custom raster',
+#            units=None,
+#            projected=True,
+#            projection_units=u.meter,
+#            about="A raster representing the user suitability.",
+#            required="calc_custom_one",
+#            allowed="calc_custom_one"
+#        ),
+#        spec.RatioInput(
+#            id="custom_one_weight",
+#            about="The weight this factor should have on overall risk.",
+#            name="User risk weight",
+#            required="calc_custom_one",
+#            allowed="calc_custom_one"
+#        ),
+#        spec.BooleanInput(
+#            id="calc_custom_two",
+#            required=False,
+#            about="User defined suitability function.",
+#            name="Additional user defined suitability input."
+#        ),
+#        spec.StringInput(
+#            id="custom_two_name",
+#            required='calc_custom_two',
+#            about="Name of the user defined input.",
+#            name="Name of additional input"
+#        ),
+#        spec.OptionStringInput(
+#            id="custom_two_func_type",
+#            name="Suitability function type",
+#            about="The function type to apply to the suitability factor.",
+#            required="calc_custom_two",
+#            allowed="calc_custom_two",
+#            options=SUITABILITY_FUNCTION_OPTIONS),
+#        *FUNC_PARAMS_USER('two'),
+#        spec.SingleBandRasterInput(
+#            id='custom_two_path',
+#            name='custom raster',
+#            units=None,
+#            projected=True,
+#            projection_units=u.meter,
+#            about="A raster representing the user suitability.",
+#            required="calc_custom_two",
+#            allowed="calc_custom_two"
+#        ),
+#        spec.RatioInput(
+#            id="custom_two_weight",
+#            about="The weight this factor should have on overall risk.",
+#            name="User risk weight",
+#            required="calc_custom_two",
+#            allowed="calc_custom_two"
+#        ),
+#        spec.BooleanInput(
+#            id="calc_custom_three",
+#            required=False,
+#            about="User defined suitability function.",
+#            name="Additional user defined suitability input."
+#        ),
+#        spec.StringInput(
+#            id="custom_three_name",
+#            required='calc_custom_three',
+#            about="Name of the user defined input.",
+#            name="Name of additional input"
+#        ),
+#        spec.OptionStringInput(
+#            id="custom_three_func_type",
+#            name="Suitability function type",
+#            about="The function type to apply to the suitability factor.",
+#            required="calc_custom_three",
+#            allowed="calc_custom_three",
+#            options=SUITABILITY_FUNCTION_OPTIONS),
+#        *FUNC_PARAMS_USER('three'),
+#        spec.SingleBandRasterInput(
+#            id='custom_three_path',
+#            name='custom raster',
+#            units=None,
+#            projected=True,
+#            projection_units=u.meter,
+#            about="A raster representing the user suitability.",
+#            required="calc_custom_three",
+#            allowed="calc_custom_three"
+#        ),
+#        spec.RatioInput(
+#            id="custom_three_weight",
+#            about="The weight this factor should have on overall risk.",
+#            name="User risk weight",
+#            required="calc_custom_three",
+#            allowed="calc_custom_three"
+#        ),
     ],
     outputs=[
         spec.SingleBandRasterOutput(
@@ -1195,16 +1206,18 @@ def execute(args):
     # operate on.
     suitability_keys = [
         ('ndvi', args['calc_ndvi']),
-        ('default_population_suit', args['default_population_suit']),
-        ('rural_population', not args['default_population_suit']),
-        ('urbanization_population', (
-            not args['default_population_suit'] and 
-            (args['urbanization_population_func_type'] != 'None'))),
+        #('default_population_suit', args['default_population_suit']),
+        ('default_population_suit', True),
+        #('rural_population', not args['default_population_suit']),
+        #('urbanization_population', (
+        #    not args['default_population_suit'] and 
+        #    (args['urbanization_population_func_type'] != 'None'))),
         ('water_velocity', args['calc_water_velocity']),
         ('water_depth', args['calc_water_depth']),
-        ('custom_one', args['calc_custom_one']),
-        ('custom_two', args['calc_custom_two']),
-        ('custom_three', args['calc_custom_three'])]
+        #('custom_one', args['calc_custom_one']),
+        #('custom_two', args['calc_custom_two']),
+        #('custom_three', args['calc_custom_three'])]
+        ]
     # Read chosen function parameters
     for suit_key, calc_suit in suitability_keys:
         # Skip non selected suitability metrics
@@ -1267,9 +1280,9 @@ def execute(args):
         (args['calc_temperature'], ['water_temp_dry_path', 'water_temp_wet_path']),
         (args['calc_ndvi'], ['ndvi_dry_path', 'ndvi_wet_path']),
         (args['calc_water_velocity'], ['dem_path']),
-        (args['calc_custom_one'], ['custom_one_path']),
-        (args['calc_custom_two'], ['custom_two_path']),
-        (args['calc_custom_three'], ['custom_three_path']),
+        #(args['calc_custom_one'], ['custom_one_path']),
+        #(args['calc_custom_two'], ['custom_two_path']),
+        #(args['calc_custom_three'], ['custom_three_path']),
     ]
     for conditional, key_list in conditional_list:
         if conditional:
@@ -1354,7 +1367,8 @@ def execute(args):
             'display_name': 'Population density',
             'group_name': POPULATION_RISK}
 
-    if args['default_population_suit']:
+    #if args['default_population_suit']:
+    if True:
         population_suitability_path = file_registry['population_suitability']
         default_population_suit_task = graph.add_task(
             _population_curve_people_per_sqkm,
@@ -1593,36 +1607,36 @@ def execute(args):
                 'group_name': WATER_RISK}
 
     ### Custom functions provided by user
-    for custom_index in ['one', 'two', 'three']:
-        if args[f'calc_custom_{custom_index}']:
-            user_input_name = args[f"custom_{custom_index}_name"]
-            target_reg_key = 'custom_suit_[CUSTOM_INDEX]_[CUSTOM_NAME]'
-            target_reg_path = file_registry[
-                    target_reg_key, custom_index, user_input_name]
-            custom_task = graph.add_task(
-                suit_func_to_use[f'custom_{custom_index}']['func_name'],
-                args=(
-                    file_registry[
-                        f'aligned_custom_{custom_index}_[CUSTOM_NAME]',
-                        user_input_name],
-                    target_reg_path
-                ),
-                kwargs=suit_func_to_use[f'custom_{custom_index}']['func_params'],
-                dependent_task_list=[align_task],
-                target_path_list=[target_reg_path],
-                task_name=f'Custom Suit for {custom_index}')
-            suitability_tasks.append(custom_task)
-            habitat_suit_risk_paths.append(target_reg_path)
-            habitat_suit_risk_weights.append(
-                    float(args[f'custom_{custom_index}_weight']))
-            outputs_to_tile.append((target_reg_path, default_color_path))
-            base_name = os.path.splitext(os.path.basename(
-                            target_reg_path))[0]
-            nb_json_config['layers'][base_name] = {
-                    'tile_dir': base_name,
-                    'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
-                    'display_name': user_input_name,
-                    'group_name': CUSTOM_RISK}
+    #for custom_index in ['one', 'two', 'three']:
+#        if args[f'calc_custom_{custom_index}']:
+#            user_input_name = args[f"custom_{custom_index}_name"]
+#            target_reg_key = 'custom_suit_[CUSTOM_INDEX]_[CUSTOM_NAME]'
+#            target_reg_path = file_registry[
+#                    target_reg_key, custom_index, user_input_name]
+#            custom_task = graph.add_task(
+#                suit_func_to_use[f'custom_{custom_index}']['func_name'],
+#                args=(
+#                    file_registry[
+#                        f'aligned_custom_{custom_index}_[CUSTOM_NAME]',
+#                        user_input_name],
+#                    target_reg_path
+#                ),
+#                kwargs=suit_func_to_use[f'custom_{custom_index}']['func_params'],
+#                dependent_task_list=[align_task],
+#                target_path_list=[target_reg_path],
+#                task_name=f'Custom Suit for {custom_index}')
+#            suitability_tasks.append(custom_task)
+#            habitat_suit_risk_paths.append(target_reg_path)
+#            habitat_suit_risk_weights.append(
+#                    float(args[f'custom_{custom_index}_weight']))
+#            outputs_to_tile.append((target_reg_path, default_color_path))
+#            base_name = os.path.splitext(os.path.basename(
+#                            target_reg_path))[0]
+#            nb_json_config['layers'][base_name] = {
+#                    'tile_dir': base_name,
+#                    'color_profile_hex': _convert_rgb_profile_to_hex(GENERIC_COLOR_RAMP),
+#                    'display_name': user_input_name,
+#                    'group_name': CUSTOM_RISK}
 
     ### Weighted arithmetic mean of water risks
     weighted_mean_task = graph.add_task(
@@ -1828,19 +1842,21 @@ def execute(args):
 
     suitability_keys = [
         ('ndvi', args['calc_ndvi'], args['ndvi_dry_path']),
-        ('default_population_suit', args['default_population_suit'],
+        #('default_population_suit', args['default_population_suit'],
+        # file_registry['population_suit_sqkm']),
+        ('default_population_suit', True,
          file_registry['population_suit_sqkm']),
-        ('rural_population', not args['default_population_suit'],
-         file_registry['rural_population_suit']),
-        ('urbanization_population', (
-            not args['default_population_suit'] and
-            (args['urbanization_population_func_type'] != 'None')),
-         file_registry['urbanization_population_suit']),
+        #('rural_population', not args['default_population_suit'],
+        # file_registry['rural_population_suit']),
+        #('urbanization_population', (
+        #    not args['default_population_suit'] and
+        #    (args['urbanization_population_func_type'] != 'None')),
+        # file_registry['urbanization_population_suit']),
         ('water_velocity', args['calc_water_velocity'], file_registry[f'slope']),
         ('water_depth', args['calc_water_depth'], file_registry[f'distance_from_shore']),
-        ('custom_one', args['calc_custom_one'], args['custom_one_path']),
-        ('custom_two', args['calc_custom_two'], args['custom_two_path']),
-        ('custom_three', args['calc_custom_three'], args['custom_three_path']),
+        #('custom_one', args['calc_custom_one'], args['custom_one_path']),
+        #('custom_two', args['calc_custom_two'], args['custom_two_path']),
+        #('custom_three', args['calc_custom_three'], args['custom_three_path']),
         ('snail_water_temp', args['calc_temperature'], args['water_temp_dry_path']),
         ('parasite_water_temp', args['calc_temperature'], args['water_temp_dry_path'])]
 
